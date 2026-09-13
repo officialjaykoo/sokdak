@@ -1,11 +1,11 @@
-export const LOCALES = ["vi", "ko", "en"] as const;
+export const LOCALES = ["ko", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 export const PREFERRED_LANGUAGES = ["unknown", ...LOCALES] as const;
 export type PreferredLanguage = (typeof PREFERRED_LANGUAGES)[number];
 
-export const LANG_COOKIE = "vth_lang";
-export const DEFAULT_LOCALE: Locale = "en";
+export const LANG_COOKIE = "sokdak_lang";
+export const DEFAULT_LOCALE: Locale = "ko";
 
 export function isLocale(value: unknown): value is Locale {
   return (
@@ -63,8 +63,6 @@ export function detectLocaleFromCountry(
   countryCode: string | null | undefined
 ): Locale | null {
   switch (countryCode?.trim().toUpperCase()) {
-    case "VN":
-      return "vi";
     case "KR":
       return "ko";
     default:

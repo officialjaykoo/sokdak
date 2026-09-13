@@ -7,26 +7,26 @@ import { MIN_DWELL_MS } from "../../../src/lib/security/bot-signals";
 export const SEED_USERS = {
   alice: {
     username: "alice",
-    providerId: "facebook",
+    providerId: "kakao",
     accountId: "e2e_alice",
   },
   bob: {
     username: "bob",
-    providerId: "facebook",
+    providerId: "kakao",
     accountId: "e2e_bob",
   },
 } as const;
 
 export const SEED_USER = SEED_USERS.alice;
 
-/** Prefer Vietnamese and skip the locale chooser dialog. */
+/** Prefer Korean and skip the locale chooser dialog. */
 export async function seedLocaleCookie(page: Page) {
   const base = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
   const host = new URL(base).hostname;
   await page.context().addCookies([
     {
       name: LANG_COOKIE,
-      value: "vi",
+      value: "ko",
       domain: host,
       path: "/",
     },
@@ -43,18 +43,8 @@ export async function disguiseAutomation(page: Page) {
   });
 }
 
-/** Dismiss the locale prompt if it still appears. */
-export async function dismissLanguagePrompt(page: Page) {
-  const preferVi = page.getByRole("button", { name: /chọn tiếng việt/i });
-  await preferVi
-    .waitFor({ state: "visible", timeout: 1_000 })
-    .catch(() => undefined);
-  if (await preferVi.isVisible().catch(() => false)) {
-    await preferVi.click();
-    await expect(preferVi).toBeHidden({ timeout: 5_000 });
-  }
-
-}
+/** Locale prompt was removed with the vi locale; kept for call-site compatibility. */
+export async function dismissLanguagePrompt() {}
 
 /**
  * Satisfy client/server bot attestation without E2E_BOT_BYPASS
@@ -102,7 +92,7 @@ export async function loginAsSeedUser(
   await page.goto(next, { waitUntil: "domcontentloaded" });
   // Ensure the client session atom starts after the test session cookie exists.
   await page.reload({ waitUntil: "domcontentloaded" });
-  await dismissLanguagePrompt(page);
+  await dismissLanguagePrompt();
 }
 
 export async function loginAsAlice(page: Page, next = "/") {
@@ -110,7 +100,7 @@ export async function loginAsAlice(page: Page, next = "/") {
 }
 
 export async function expectSignedIn(page: Page) {
-  const accountMenu = page.getByRole("button", { name: /menu tài khoản/i });
+  const accountMenu = page.getByRole("button", { name: /계정 메뉴/i });
   try {
     await accountMenu.waitFor({ state: "visible", timeout: 5_000 });
   } catch {

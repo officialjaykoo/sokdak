@@ -1,73 +1,37 @@
-import type {
-  ContentSourceLang,
-  ContentTranslation,
-  ContentTranslationStatus,
-  FeedPost,
-} from "@/lib/types";
+import type { FeedPost } from "@/lib/types";
+import { anonTag } from "@/lib/anon-tag";
 import { resolveAccountTags } from "@/lib/tags";
 
 export type PostProjectionRow = {
   id: string;
+  num?: number;
   title: string;
   body: string | null;
   url: string | null;
   media_key: string | null;
   like_count: number;
   comment_count: number;
+  views?: number;
+  is_notice?: number;
   created_at: string;
-  source_lang?: string | null;
-  translation_target_lang?: string | null;
-  title_translated?: string | null;
-  body_translated?: string | null;
-  translation_status?: string | null;
   author_id: string;
-  author_username: string | null;
-  author_display_name: string | null;
-  author_image?: string | null;
   author_role?: string | null;
-  author_is_community_mod?: number | null;
-  subreddit_id: string;
-  subreddit_name: string;
-  subreddit_title: string;
   viewer_liked?: number | null;
   viewer_saved?: number | null;
 };
 
-export function mapPostTranslation(row: {
-  source_lang?: string | null;
-  translation_target_lang?: string | null;
-  translation_status?: string | null;
-  title_translated?: string | null;
-  body_translated?: string | null;
-}): ContentTranslation | null {
-  const status = (row.translation_status ?? "pending") as ContentTranslationStatus;
-  if (status !== "ready") {
-    return {
-      sourceLang: (row.source_lang as ContentSourceLang | null) ?? null,
-      targetLang:
-        (row.translation_target_lang as ContentTranslation["targetLang"]) ?? null,
-      status,
-      titleTranslated: null,
-      bodyTranslated: null,
-    };
-  }
-  return {
-    sourceLang: (row.source_lang as ContentSourceLang | null) ?? null,
-    targetLang:
-      (row.translation_target_lang as ContentTranslation["targetLang"]) ?? null,
-    status,
-    titleTranslated: row.title_translated ?? null,
-    bodyTranslated: row.body_translated ?? null,
-  };
-}
-
-/** Shared public post DTO used by feed, discovery, recommendations, and detail. */
+/**
+ * Shared public post DTO used by board list, profile, and detail.
+ * Author identity is always the per-thread anonymous tag — the username
+ * never enters the public payload.
+ */
 export function mapPostProjection(
   row: PostProjectionRow,
   viewerUserId?: string | null
 ): FeedPost {
   return {
     id: row.id,
+    num: Number(row.num ?? 0),
     title: row.title,
     body: row.body,
     url: row.url,
@@ -75,24 +39,15 @@ export function mapPostProjection(
     createdAt: row.created_at,
     commentCount: Number(row.comment_count ?? 0),
     likeCount: Number(row.like_count ?? 0),
+    views: Number(row.views ?? 0),
+    isNotice: Boolean(row.is_notice),
     liked: Boolean(row.viewer_liked),
     saved: Boolean(row.viewer_saved),
-    translation: mapPostTranslation(row),
     author: {
       id: row.author_id,
-      username: row.author_username ?? "unknown",
-      displayName: row.author_display_name,
-      image: row.author_image ?? null,
-      tags: resolveAccountTags({
-        role: row.author_role,
-        isCommunityMod: Boolean(row.author_is_community_mod),
-      }),
+      anonTag: anonTag(row.id, row.author_id),
+      tags: resolveAccountTags({ role: row.author_role }),
       isAuthor: Boolean(viewerUserId && viewerUserId === row.author_id),
-    },
-    subreddit: {
-      id: row.subreddit_id,
-      name: row.subreddit_name,
-      title: row.subreddit_title,
     },
   };
 }

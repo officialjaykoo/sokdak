@@ -24,9 +24,9 @@ type UnreadChangeListener = (
   source: UnreadChangeSource
 ) => void;
 
-const UNREAD_CHANGE_EVENT = "vth-unread-changed";
-const UNREAD_CHANGE_CHANNEL = "vth-unread";
-const UNREAD_CHANGE_STORAGE_KEY = "vth-unread-changed";
+const UNREAD_CHANGE_EVENT = "sokdak-unread-changed";
+const UNREAD_CHANGE_CHANNEL = "sokdak-unread";
+const UNREAD_CHANGE_STORAGE_KEY = "sokdak-unread-changed";
 
 let unreadChannel: BroadcastChannel | null = null;
 

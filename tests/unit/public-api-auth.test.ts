@@ -27,7 +27,7 @@ vi.mock("@/lib/session", () => ({ AuthError }));
 import { requirePublicApiKey } from "@/lib/public-api-auth";
 
 function makeRequest(authorization?: string, cookie?: string) {
-  return new Request("https://vth.kr/api/posts", {
+  return new Request("https://sokdak.kr/api/posts", {
     headers: {
       ...(authorization ? { authorization } : {}),
       ...(cookie ? { cookie } : {}),

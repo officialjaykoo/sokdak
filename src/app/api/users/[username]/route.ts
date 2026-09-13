@@ -2,15 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getDb } from "@/lib/db";
 import {
-  cancelFriendRequestByUsers,
-  sendFriendRequest,
-} from "@/lib/friends";
-import {
-  followUser,
   getProfileRelation,
   muteUser,
   reportTarget,
-  unfollowUser,
   unmuteUser,
 } from "@/lib/user-actions";
 import { AuthError, jsonAuthError, requireSession } from "@/lib/session";
@@ -58,31 +52,6 @@ export async function POST(
     const body = parseUserActionPayload(await readApiJson(request));
 
     switch (body.action) {
-      case "follow":
-        return relationResponse(
-          await followUser(session.user.id, user.id),
-          session.user.id,
-          user.id
-        );
-      case "unfollow":
-        return relationResponse(
-          await unfollowUser(session.user.id, user.id),
-          session.user.id,
-          user.id
-        );
-      case "friend_request":
-        return relationResponse(
-          await sendFriendRequest(session.user.id, user.id),
-          session.user.id,
-          user.id,
-          201
-        );
-      case "friend_cancel":
-        return relationResponse(
-          await cancelFriendRequestByUsers(session.user.id, user.id),
-          session.user.id,
-          user.id
-        );
       case "mute":
         return relationResponse(
           await muteUser(session.user.id, user.id),

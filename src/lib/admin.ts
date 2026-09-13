@@ -56,6 +56,26 @@ export async function setUserStatus(input: {
   }
 }
 
+export async function setPostNotice(input: {
+  actorId: string;
+  postId: string;
+  notice: boolean;
+}) {
+  const db = await getDb();
+  const result = await db
+    .prepare(
+      `UPDATE posts
+       SET is_notice = ?, updated_at = datetime('now')
+       WHERE id = ?`
+    )
+    .bind(input.notice ? 1 : 0, input.postId)
+    .run();
+  if (Number(result.meta.changes ?? 0) !== 1) {
+    throw new AuthError("Post not found", 404);
+  }
+  return { ok: true as const };
+}
+
 export async function warnUser(input: {
   actorId: string;
   targetUserId: string;
@@ -126,7 +146,7 @@ export async function deleteAccount(input: {
              name = 'deleted',
              username = NULL,
              bio = NULL,
-             email = 'deleted_' || id || '@red.invalid',
+             email = 'deleted_' || id || '@sokdak.invalid',
              updatedAt = datetime('now')
          WHERE id = ?`
       )
@@ -170,10 +190,6 @@ export async function deleteAccount(input: {
         `UPDATE comments
          SET is_removed = 1,
              body = CASE WHEN is_deleted = 1 THEN '[deleted]' ELSE '[removed]' END,
-             source_lang = NULL,
-             translation_target_lang = NULL,
-             body_translated = NULL,
-             translation_status = 'skipped',
              updated_at = datetime('now')
          WHERE author_id = ?`
       )
@@ -196,47 +212,6 @@ export async function deleteAccount(input: {
   runBackgroundTask("deleted_user_chat_revoke", () =>
     revokeChatRoomsForUser(input.targetUserId)
   );
-}
-
-export async function deleteSubreddit(input: {
-  actorId: string;
-  subredditId: string;
-  reason?: string;
-}) {
-  const db = await getDb();
-  const sub = await db
-    .prepare(`SELECT id FROM subreddits WHERE id = ?`)
-    .bind(input.subredditId)
-    .first();
-  if (!sub) throw new AuthError("Subreddit not found", 404);
-
-  await db
-    .prepare(
-      `UPDATE subreddits SET is_removed = 1, updated_at = datetime('now') WHERE id = ?`
-    )
-    .bind(input.subredditId)
-    .run();
-
-  await db
-    .prepare(
-      `UPDATE posts SET is_removed = 1, updated_at = datetime('now') WHERE subreddit_id = ?`
-    )
-    .bind(input.subredditId)
-    .run();
-
-  await db
-    .prepare(
-      `INSERT INTO moderation_actions (
-         id, actor_id, target_type, target_id, action, reason
-       ) VALUES (?, ?, 'subreddit', ?, 'delete_subreddit', ?)`
-    )
-    .bind(
-      crypto.randomUUID(),
-      input.actorId,
-      input.subredditId,
-      input.reason ?? null
-    )
-    .run();
 }
 
 export async function addBannedWord(input: {
@@ -285,17 +260,6 @@ export async function listAdminBannedWords() {
 }
 
 
-export type AdminCommunity = {
-  id: string;
-  name: string;
-  title: string;
-  description: string | null;
-  memberCount: number;
-  postCount: number;
-  status: "active" | "removed";
-  createdAt: string;
-};
-
 export type AdminUser = {
   id: string;
   username: string | null;
@@ -314,13 +278,9 @@ export async function getAdminDashboard() {
          (SELECT COUNT(*) FROM posts WHERE is_removed = 0) AS posts,
          (SELECT COUNT(*) FROM comments
           WHERE is_removed = 0 AND is_deleted = 0 AND is_shadow_hidden = 0) AS comments,
-         (SELECT COUNT(*) FROM subreddits WHERE is_removed = 0) AS communities,
-         (SELECT COUNT(*) FROM businesses WHERE status != 'removed') AS businesses,
-         (SELECT COUNT(*) FROM listings WHERE status != 'removed') AS listings,
-         (SELECT COUNT(*) FROM listing_reports WHERE status = 'open') AS marketplace_reports,
+         (SELECT COUNT(*) FROM reports WHERE status = 'open') AS content_reports,
          (SELECT COUNT(*) FROM chat_message_reports WHERE status = 'open') +
            (SELECT COUNT(*) FROM chat_room_reports WHERE status = 'open') AS message_reports,
-         (SELECT COUNT(*) FROM business_verification_requests WHERE status = 'pending') AS business_verifications,
          (SELECT COUNT(*) FROM "user" WHERE status = 'banned') AS banned,
          (SELECT COUNT(*) FROM "user" WHERE status = 'shadowbanned') AS shadowbanned`
     )
@@ -338,74 +298,6 @@ export async function getAdminDashboard() {
     counts: counts ?? {},
     recentActions: recentActions ?? [],
   };
-}
-
-export async function listAdminCommunities(input: {
-  search?: string;
-  limit?: number;
-  offset?: number;
-} = {}) {
-  const db = await getDb();
-  const search = input.search?.trim() ?? "";
-  const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
-  const offset = Math.max(input.offset ?? 0, 0);
-  const pattern = `%${search}%`;
-  const { results } = await db
-    .prepare(
-      `SELECT
-         s.id,
-         s.name,
-         s.title,
-         s.description,
-         s.subscriber_count AS memberCount,
-         s.created_at AS createdAt,
-         CASE WHEN s.is_removed = 1 THEN 'removed' ELSE 'active' END AS status,
-         (
-           SELECT COUNT(*) FROM posts p
-           WHERE p.subreddit_id = s.id AND p.is_removed = 0
-         ) AS postCount
-       FROM subreddits s
-       WHERE (? = '' OR s.name LIKE ? OR s.title LIKE ?)
-       ORDER BY s.is_removed ASC, s.updated_at DESC
-       LIMIT ? OFFSET ?`
-    )
-    .bind(search, pattern, pattern, limit, offset)
-    .all<AdminCommunity>();
-  return results ?? [];
-}
-
-export async function updateSubreddit(input: {
-  actorId: string;
-  subredditId: string;
-  title: string;
-  description?: string | null;
-}) {
-  const title = input.title.trim();
-  if (title.length < 3 || title.length > 100) {
-    throw new AuthError("Title must be 3–100 characters", 400);
-  }
-  const db = await getDb();
-  const sub = await db
-    .prepare(`SELECT id FROM subreddits WHERE id = ?`)
-    .bind(input.subredditId)
-    .first();
-  if (!sub) throw new AuthError("Community not found", 404);
-  await db
-    .prepare(
-      `UPDATE subreddits
-       SET title = ?, description = ?, updated_at = datetime('now')
-       WHERE id = ?`
-    )
-    .bind(title, input.description?.trim() || null, input.subredditId)
-    .run();
-  await db
-    .prepare(
-      `INSERT INTO moderation_actions
-       (id, actor_id, target_type, target_id, action, reason)
-       VALUES (?, ?, 'subreddit', ?, 'update_subreddit', ?)`
-    )
-    .bind(crypto.randomUUID(), input.actorId, input.subredditId, title)
-    .run();
 }
 
 export async function listAdminUsers(input: {

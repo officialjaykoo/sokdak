@@ -11,8 +11,6 @@ const SOURCES = new Set<ReviewSourceType | "all">([
   "post",
   "comment",
   "user",
-  "listing",
-  "business",
   "chat",
 ]);
 

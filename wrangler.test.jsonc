@@ -1,13 +1,16 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "vth-vitest",
+	"name": "sokdak-vitest",
 	"main": "./tests/workers/test-worker.ts",
 	"compatibility_date": "2026-08-01",
 	"compatibility_flags": ["nodejs_compat"],
+	"vars": {
+		"BETTER_AUTH_SECRET": "test-secret"
+	},
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "vth-test",
+			"database_name": "sokdak-test",
 			"database_id": "local-db-id",
 			"migrations_dir": "./migrations"
 		}
@@ -15,7 +18,7 @@
 	"r2_buckets": [
 		{
 			"binding": "MEDIA_BUCKET",
-			"bucket_name": "vth-test-media"
+			"bucket_name": "sokdak-test-media"
 		}
 	],
 	"durable_objects": {

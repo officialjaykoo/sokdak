@@ -124,7 +124,6 @@ function setTunnel(verified: boolean) {
       ? {
           verified: true,
           json: {
-            subreddit: "general",
             title: "Valid post title",
           },
           raw: new Uint8Array([1]),
@@ -145,7 +144,6 @@ describe("browser human proof on canonical post and media writes", () => {
     });
     mockRequireActiveUser.mockResolvedValue(undefined);
     mockReadApiJson.mockResolvedValue({
-      subreddit: "general",
       title: "Valid post title",
     });
     mockRequireBotAttestation.mockImplementation((value: unknown) => value);

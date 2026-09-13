@@ -8,21 +8,30 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# VTH project rules
+# Sokdak project rules
 
 ## Product scope
 
-VTH is a small social/community service for Vietnamese people living in Korea.
+속닥속닥 (sokdak) is a small anonymous Korean community.
 
 Core product:
 
-- posts, comments, likes
-- communities
-- Q&A
-- marketplace
-- local businesses
-- follow, friends, block
-- 1:1 messaging
+- posts, comments, likes (posts are independent — no communities)
+- save, report, block, mute
+- notifications, media
+- admin/moderation
+- 1:1 messaging code is retained but disabled by the `dm_enabled` site setting
+
+Removed scope — do not reintroduce:
+
+- communities/subreddits
+- Q&A, marketplace, local businesses
+- follow, friends, presence, recommendations
+- achievements, badges, karma
+- monetization: ads, Pro subscriptions, billing
+- translation and multilingual content
+
+Locales: `ko` (default) and `en` only.
 
 Do not turn Facebook/Threads UX references into Facebook-scale architecture.
 
@@ -31,9 +40,9 @@ Do not turn Facebook/Threads UX references into Facebook-scale architecture.
 - D1 is the persistent source of truth.
 - R2 stores media.
 - ChatRoom Durable Object is realtime DM delivery only.
-- Workers AI is translation only.
 - Browser application API traffic uses `/i/api`.
 - Direct `/api/*` access follows the existing public API authentication boundary.
+- `site_settings` rows are the feature-flag mechanism (e.g. `dm_enabled`).
 
 Do not add or restore:
 
@@ -91,9 +100,9 @@ For user-created writes:
 
 ## UX
 
-Consumer pages use Q&A / Marketplace as the baseline VTH visual language:
+Consumer pages use the shared Sokdak visual language:
 
-- VTH radial brand backdrop
+- radial brand backdrop
 - eyebrow → title → description
 - consistent card hierarchy
 - shared button/input/select primitives

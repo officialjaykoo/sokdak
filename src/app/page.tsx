@@ -1,33 +1,26 @@
 import {
-  CircleHelpIcon,
   FlameIcon,
   HomeIcon,
   PlusIcon,
-  ShoppingBagIcon,
-  SparklesIcon,
-  StoreIcon,
   UserRoundIcon,
-  UsersRoundIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Feed } from "@/components/feed/feed";
+import { BoardList } from "@/components/board/board-list";
+import { BoardPagination } from "@/components/board/board-pagination";
 import { FeedComposer } from "@/components/feed/feed-composer";
-import { FeedShortcutRail } from "@/components/feed/feed-shortcut-rail";
-import { FeedModeTabs } from "@/components/feed/feed-controls";
+import { FeedSortTabs } from "@/components/feed/feed-controls";
 import { PageBackdrop } from "@/components/layout/page-backdrop";
 import { PageShell } from "@/components/layout/page-shell";
 import { SiteHeader } from "@/components/layout/site-header";
-import { OnlinePeopleList } from "@/components/online/online-people-list";
 import {
   DEFAULT_POPULAR_WINDOW,
-  getFeedPosts,
+  getBoardPosts,
   parsePopularWindow,
-  type FeedMode,
+  type BoardPage,
   type FeedSort,
   type PopularWindow,
 } from "@/lib/db";
-import { listOnlineUsers } from "@/lib/presence";
 import { getRequestLocale } from "@/lib/i18n/server";
 import { tLocale } from "@/lib/i18n/translate";
 import { UserAvatar } from "@/components/user/user-avatar";
@@ -35,60 +28,51 @@ import { getSession } from "@/lib/session";
 import { getOnboardingState } from "@/lib/onboarding";
 import { getProfileHref } from "@/lib/profile-url";
 import { cn } from "@/lib/utils";
-import type { PaginatedFeed } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-function parseSort(value: string | undefined, mode: "home" | "popular"): FeedSort {
-  if (value === "popular" || mode === "popular") return "popular";
-  return "new";
-}
+const BOARD_PER_PAGE = 20;
 
-function parseMode(value: string | undefined): "home" | "popular" {
-  if (value === "popular") return "popular";
-  return "home";
-}
-
-async function loadInitialFeed(options: {
+async function loadBoard(options: {
   sort: FeedSort;
-  mode: FeedMode;
   window: PopularWindow;
+  page: number;
   viewerUserId: string | null;
-}): Promise<PaginatedFeed> {
+}): Promise<BoardPage> {
   try {
-    const feed = await getFeedPosts({
-      limit: 20,
+    return await getBoardPosts({
+      page: options.page,
+      perPage: BOARD_PER_PAGE,
       viewerUserId: options.viewerUserId,
       sort: options.sort,
-      mode: options.mode,
       window: options.window,
     });
+  } catch (error) {
+    console.error("Failed to load board page", error);
     return {
-      posts: feed.posts.map((post) => ({ ...post, kind: "post" as const })),
-      nextCursor: feed.nextCursor,
-      hasMore: feed.hasMore,
+      notices: [],
+      posts: [],
+      page: 1,
+      perPage: BOARD_PER_PAGE,
+      total: 0,
+      totalPages: 1,
     };
-  } catch (error) {
-    console.error("Failed to load initial feed", error);
-    return { posts: [], nextCursor: null, hasMore: false };
   }
 }
-async function loadOnlineUsers(viewerUserId: string | null) {
-  try {
-    return await listOnlineUsers(viewerUserId, 12);
-  } catch (error) {
-    console.error("Failed to load online users", error);
-    return [];
-  }
-}
+
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; feed?: string; window?: string }>;
+  searchParams: Promise<{
+    sort?: string;
+    window?: string;
+    page?: string;
+  }>;
 }) {
   const params = await searchParams;
   const popularWindow =
     parsePopularWindow(params.window) ?? DEFAULT_POPULAR_WINDOW;
+  const pageParam = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const session = await getSession();
   const onboarding = session?.user
     ? await getOnboardingState(session.user.id)
@@ -108,36 +92,11 @@ export default async function HomePage({
   const image = session?.user?.image ?? null;
   const desktopLinks = [
     {
-      href: "/?feed=popular",
+      href: "/?sort=popular",
       label: tLocale(locale, "nav.popular"),
       icon: FlameIcon,
     },
     { href: "/", label: tLocale(locale, "nav.home"), icon: HomeIcon },
-    {
-      href: "/communities",
-      label: tLocale(locale, "nav.communities"),
-      icon: UsersRoundIcon,
-    },
-    {
-      href: "/questions",
-      label: tLocale(locale, "nav.questions"),
-      icon: CircleHelpIcon,
-    },
-    {
-      href: "/marketplace",
-      label: tLocale(locale, "nav.marketplace"),
-      icon: ShoppingBagIcon,
-    },
-    {
-      href: "/businesses",
-      label: tLocale(locale, "nav.businesses"),
-      icon: StoreIcon,
-    },
-    {
-      href: "/recommended",
-      label: tLocale(locale, "nav.forYou"),
-      icon: SparklesIcon,
-    },
     {
       href: "/submit",
       label: tLocale(locale, "nav.createPost"),
@@ -149,48 +108,20 @@ export default async function HomePage({
       icon: UserRoundIcon,
     },
   ];
-  const shortcutLinks = [
-    {
-      href: "/communities",
-      label: tLocale(locale, "nav.communities"),
-      icon: UsersRoundIcon,
-    },
-    {
-      href: "/questions",
-      label: tLocale(locale, "nav.questions"),
-      icon: CircleHelpIcon,
-    },
-    {
-      href: "/marketplace",
-      label: tLocale(locale, "nav.marketplace"),
-      icon: ShoppingBagIcon,
-    },
-    {
-      href: "/businesses",
-      label: tLocale(locale, "nav.businesses"),
-      icon: StoreIcon,
-    },
-  ];
-  const mode = parseMode(params.feed);
-  const sort = parseSort(params.sort, mode);
-  const [initialFeed, onlineUsers] = await Promise.all([
-    loadInitialFeed({
-      sort,
-      mode,
-      window: popularWindow,
-      viewerUserId: session?.user?.id ?? null,
-    }),
-    signedIn
-      ? loadOnlineUsers(session?.user?.id ?? null)
-      : Promise.resolve([]),
-  ]);
+  const sort: FeedSort = params.sort === "popular" ? "popular" : "new";
+  const board = await loadBoard({
+    sort,
+    window: popularWindow,
+    page: pageParam,
+    viewerUserId: session?.user?.id ?? null,
+  });
 
   return (
     <>
       <SiteHeader />
       <main className="relative flex-1">
         <PageBackdrop />
-        <PageShell width="wide" className="grid py-4 sm:py-6 xl:grid-cols-[228px_minmax(0,680px)_280px] xl:gap-5">
+        <PageShell width="wide" className="grid py-4 sm:py-6 xl:grid-cols-[228px_minmax(0,860px)] xl:gap-5">
           <aside className="hidden xl:block">
             <nav
               className="sticky top-[4.5rem] max-h-[calc(100dvh-5.5rem)] space-y-1 overflow-y-auto pr-2"
@@ -210,8 +141,8 @@ export default async function HomePage({
               <div className="mb-2 h-px bg-border/70" />
               {desktopLinks.map(({ href, label, icon: Icon }) => {
                 const active =
-                  (href === "/?feed=popular" && mode === "popular") ||
-                  (href === "/" && mode === "home");
+                  (href === "/?sort=popular" && sort === "popular") ||
+                  (href === "/" && sort === "new");
                 return (
                   <Link
                     key={href}
@@ -239,24 +170,21 @@ export default async function HomePage({
                   className="size-2.5 rounded-full bg-[var(--flag-gold)] ring-4 ring-[color-mix(in_oklch,var(--flag-gold)_22%,transparent)]"
                 />
                 <p className="text-xs font-semibold tracking-[0.14em] text-[var(--brand)] uppercase">
-                  {mode === "home"
-                    ? tLocale(locale, "feed.yourFeed")
+                  {sort === "new"
+                    ? tLocale(locale, "feed.new")
                     : tLocale(locale, "feed.popular")}
                 </p>
               </div>
               <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
-                Việt tại Hàn
+                속닥속닥
               </h1>
               <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">
-                {mode === "home"
-                  ? tLocale(locale, "feed.homeBlurb")
-                  : tLocale(locale, "feed.popularBlurb")}
+                {tLocale(locale, "feed.homeBlurb")}
               </p>
             </section>
 
-            <FeedModeTabs
-              current={mode}
-              signedIn={signedIn}
+            <FeedSortTabs
+              current={sort}
               popularWindow={popularWindow}
             />
 
@@ -266,33 +194,45 @@ export default async function HomePage({
               image={image}
               title={tLocale(locale, "nav.createPost")}
               prompt={tLocale(locale, "comments.placeholder")}
-              textLabel={tLocale(locale, "questions.ask")}
+              textLabel={tLocale(locale, "post.text")}
               imageLabel={tLocale(locale, "post.image")}
               linkLabel={tLocale(locale, "post.link")}
             />
-            <FeedShortcutRail
-              heading={tLocale(locale, "nav.communities")}
-              links={shortcutLinks}
+            <BoardList
+              notices={board.notices}
+              posts={board.posts}
+              page={board.page}
+              perPage={board.perPage}
+              total={board.total}
+              locale={locale}
+              labels={{
+                num: tLocale(locale, "board.num"),
+                title: tLocale(locale, "board.title"),
+                author: tLocale(locale, "board.author"),
+                date: tLocale(locale, "board.date"),
+                views: tLocale(locale, "board.views"),
+                likes: tLocale(locale, "board.likes"),
+                notice: tLocale(locale, "board.notice"),
+                comments: tLocale(locale, "feed.comments"),
+                empty: tLocale(locale, "board.empty"),
+                anonymous: tLocale(locale, "board.anonymous"),
+              }}
             />
-            <Feed
-              initialFeed={initialFeed}
-              sort={sort}
-              mode={mode}
-              window={popularWindow}
+            <BoardPagination
+              page={board.page}
+              totalPages={board.totalPages}
+              params={{
+                sort: params.sort,
+                window: params.window,
+              }}
+              labels={{
+                first: tLocale(locale, "board.first"),
+                prev: tLocale(locale, "board.prev"),
+                next: tLocale(locale, "board.next"),
+                last: tLocale(locale, "board.last"),
+              }}
             />
           </div>
-
-          {signedIn ? (
-            <aside className="hidden xl:col-start-3 xl:block">
-              <div className="sticky top-[4.5rem]">
-                <OnlinePeopleList
-                  initialUsers={onlineUsers}
-                  heading={tLocale(locale, "online.title")}
-                  empty={tLocale(locale, "online.empty")}
-                />
-              </div>
-            </aside>
-          ) : null}
         </PageShell>
       </main>
     </>

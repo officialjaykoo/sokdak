@@ -8,6 +8,7 @@ import { MessagesClient } from "@/components/messages/messages-client";
 import { getRequestLocale } from "@/lib/i18n/server";
 import { getSession } from "@/lib/session";
 import { redirectIfIncompleteOnboarding } from "@/lib/onboarding-access";
+import { isDmEnabled } from "@/lib/settings";
 import { tLocale } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ export default async function MessagesPage({
   }
   await redirectIfIncompleteOnboarding(session.user.id);
   const { locale } = await getRequestLocale();
+  const dmEnabled = await isDmEnabled();
 
   return (
     <>
@@ -32,15 +34,21 @@ export default async function MessagesPage({
       <main data-testid="messages-page" className="relative flex-1">
         <PageBackdrop variant="subtle" />
         <PageShell width="standard" className="py-3 sm:py-4">
-          <Suspense
-            fallback={
-              <p className="text-sm text-muted-foreground">
-                {tLocale(locale, "common.loading")}
-              </p>
-            }
-          >
-            <MessagesClient />
-          </Suspense>
+          {dmEnabled ? (
+            <Suspense
+              fallback={
+                <p className="text-sm text-muted-foreground">
+                  {tLocale(locale, "common.loading")}
+                </p>
+              }
+            >
+              <MessagesClient />
+            </Suspense>
+          ) : (
+            <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+              {tLocale(locale, "messages.disabled")}
+            </p>
+          )}
         </PageShell>
       </main>
     </>

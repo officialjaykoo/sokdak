@@ -1,3 +1,5 @@
+import { ListIcon } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CommentComposer } from "@/components/comments/comment-composer";
@@ -13,25 +15,20 @@ import { getRequestLocale } from "@/lib/i18n/server";
 import { tLocale } from "@/lib/i18n/translate";
 import { getSession } from "@/lib/session";
 import { redirectIfIncompleteOnboarding } from "@/lib/onboarding-access";
-import { parseDiscoverySource } from "@/lib/discovery";
 
 export const dynamic = "force-dynamic";
 
 export default async function PostPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ src?: string }>;
 }) {
   const { id } = await params;
-  const { src } = await searchParams;
   const session = await getSession();
   await redirectIfIncompleteOnboarding(session?.user?.id);
   const { locale } = await getRequestLocale();
   const post = await getPostDetail(id, session?.user?.id ?? null);
   if (!post) notFound();
-  const discoverySource = parseDiscoverySource(src);
 
   return (
     <>
@@ -40,10 +37,31 @@ export default async function PostPage({
         <PageBackdrop variant="subtle" />
         <PageShell width="standard" className="space-y-6">
 
+          <div className="flex items-center justify-between gap-2 px-1">
+            <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <ListIcon className="size-3.5" aria-hidden />
+                {tLocale(locale, "board.list")}
+              </Link>
+              <span className="tabular-nums">No.{post.num}</span>
+              {post.isNotice ? (
+                <span className="rounded bg-[var(--brand)] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {tLocale(locale, "board.notice")}
+                </span>
+              ) : null}
+            </p>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {tLocale(locale, "board.views")} {post.views}
+            </p>
+          </div>
+
           <PostCard
             post={post}
-            discoverySource={discoverySource}
             showBody={false}
+            canModerate={session?.user?.role === "admin"}
           />
 
           <PostAuthorActions
@@ -70,9 +88,7 @@ export default async function PostPage({
             </p>
           ) : null}
 
-          {post.body ? (
-            <PostBodyPanel body={post.body} translation={post.translation} />
-          ) : null}
+          {post.body ? <PostBodyPanel body={post.body} /> : null}
 
           <section className="space-y-4">
             <h2 className="font-heading text-xl font-semibold">

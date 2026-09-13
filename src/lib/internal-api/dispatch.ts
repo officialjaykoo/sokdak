@@ -98,6 +98,11 @@ export const ROUTES: RouteEntry[] = [
     load: () => import("@/app/api/posts/[id]/block-author/route"),
   },
   {
+    methods: ["POST"],
+    pattern: "/api/posts/:id/mute-author",
+    load: () => import("@/app/api/posts/[id]/mute-author/route"),
+  },
+  {
     methods: ["PATCH", "DELETE"],
     pattern: "/api/comments/:id",
     load: () => import("@/app/api/comments/[id]/route"),
@@ -108,19 +113,9 @@ export const ROUTES: RouteEntry[] = [
     load: () => import("@/app/api/comments/[id]/like/route"),
   },
   {
-    methods: ["GET", "POST"],
-    pattern: "/api/subreddits",
-    load: () => import("@/app/api/subreddits/route"),
-  },
-  {
-    methods: ["GET"],
-    pattern: "/api/subreddits/:name",
-    load: () => import("@/app/api/subreddits/[name]/route"),
-  },
-  {
-    methods: ["POST", "DELETE"],
-    pattern: "/api/subreddits/:name/subscribe",
-    load: () => import("@/app/api/subreddits/[name]/subscribe/route"),
+    methods: ["POST"],
+    pattern: "/api/comments/:id/block-author",
+    load: () => import("@/app/api/comments/[id]/block-author/route"),
   },
   {
     methods: ["GET"],
@@ -136,16 +131,6 @@ export const ROUTES: RouteEntry[] = [
     methods: ["POST"],
     pattern: "/api/users/:username",
     load: () => import("@/app/api/users/[username]/route"),
-  },
-  {
-    methods: ["GET", "POST"],
-    pattern: "/api/friends",
-    load: () => import("@/app/api/friends/route"),
-  },
-  {
-    methods: ["GET", "POST"],
-    pattern: "/api/presence",
-    load: () => import("@/app/api/presence/route"),
   },
   {
     methods: ["POST"],
@@ -194,26 +179,6 @@ export const ROUTES: RouteEntry[] = [
   },
   {
     methods: ["GET", "POST"],
-    pattern: "/api/questions",
-    load: () => import("@/app/api/questions/route"),
-  },
-  {
-    methods: ["GET"],
-    pattern: "/api/questions/:id",
-    load: () => import("@/app/api/questions/[id]/route"),
-  },
-  {
-    methods: ["POST"],
-    pattern: "/api/questions/:id/answers",
-    load: () => import("@/app/api/questions/[id]/answers/route"),
-  },
-  {
-    methods: ["POST"],
-    pattern: "/api/questions/:id/accept",
-    load: () => import("@/app/api/questions/[id]/accept/route"),
-  },
-  {
-    methods: ["GET", "POST"],
     pattern: "/api/messages",
     load: () => import("@/app/api/messages/route"),
   },
@@ -256,66 +221,6 @@ export const ROUTES: RouteEntry[] = [
     methods: ["GET"],
     pattern: "/api/search",
     load: () => import("@/app/api/search/route"),
-  },
-  {
-    methods: ["GET", "POST"],
-    pattern: "/api/listings",
-    load: () => import("@/app/api/listings/route"),
-  },
-  {
-    methods: ["GET"],
-    pattern: "/api/listings/saved",
-    load: () => import("@/app/api/listings/saved/route"),
-  },
-  {
-    methods: ["GET", "PATCH"],
-    pattern: "/api/listings/:id",
-    load: () => import("@/app/api/listings/[id]/route"),
-  },
-  {
-    methods: ["POST"],
-    pattern: "/api/listings/:id/save",
-    load: () => import("@/app/api/listings/[id]/save/route"),
-  },
-  {
-    methods: ["POST"],
-    pattern: "/api/listings/:id/report",
-    load: () => import("@/app/api/listings/[id]/report/route"),
-  },
-  {
-    methods: ["GET", "POST"],
-    pattern: "/api/businesses",
-    load: () => import("@/app/api/businesses/route"),
-  },
-  {
-    methods: ["GET"],
-    pattern: "/api/businesses/mine",
-    load: () => import("@/app/api/businesses/mine/route"),
-  },
-  {
-    methods: ["GET", "PATCH"],
-    pattern: "/api/businesses/:id",
-    load: () => import("@/app/api/businesses/[id]/route"),
-  },
-  {
-    methods: ["POST"],
-    pattern: "/api/businesses/:id/verification",
-    load: () => import("@/app/api/businesses/[id]/verification/route"),
-  },
-  {
-    methods: ["GET", "POST"],
-    pattern: "/api/businesses/:id/bookings",
-    load: () => import("@/app/api/businesses/[id]/bookings/route"),
-  },
-  {
-    methods: ["PATCH"],
-    pattern: "/api/business-bookings/:id",
-    load: () => import("@/app/api/business-bookings/[id]/route"),
-  },
-  {
-    methods: ["GET"],
-    pattern: "/api/recommendations",
-    load: () => import("@/app/api/recommendations/route"),
   },
   {
     methods: ["GET", "POST"],

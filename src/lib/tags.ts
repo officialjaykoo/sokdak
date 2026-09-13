@@ -8,7 +8,6 @@ export type AccountTag = {
 /** Visible role tags; permissions are enforced separately. */
 export function resolveAccountTags(input: {
   role?: string | null;
-  isCommunityMod?: boolean | null;
 }): AccountTag[] {
   const role = input.role ?? "user";
   const tags: AccountTag[] = [];
@@ -17,7 +16,7 @@ export function resolveAccountTags(input: {
     tags.push({ id: "admin", label: "Admin" });
   }
 
-  if (role === "moderator" || input.isCommunityMod) {
+  if (role === "moderator") {
     tags.push({ id: "moderator", label: "Mod" });
   }
 

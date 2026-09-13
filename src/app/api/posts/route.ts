@@ -5,12 +5,10 @@ import { HUMAN_COOKIE, openHumanToken } from "@/lib/security/human-cookie";
 import { parseCreatePostPayload } from "@/lib/post-payload";
 import { getTunnelContext } from "@/lib/security/tunnel-context";
 import {
-  getDb,
   getFeedPosts,
   InvalidFeedCursorError,
   parsePopularWindow,
   DEFAULT_POPULAR_WINDOW,
-  type FeedMode,
   type FeedSort,
   type PopularWindow,
 } from "@/lib/db";
@@ -28,13 +26,11 @@ import { readApiJson } from "@/lib/security/guard";
 import { requireActiveUser } from "@/lib/permissions";
 
 const SORTS = new Set<FeedSort>(["new", "popular"]);
-const MODES = new Set<FeedMode>(["home", "popular", "community"]);
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
     const cursor = searchParams.get("cursor");
-    const subreddit = searchParams.get("subreddit");
     const limitParam = searchParams.get("limit");
     const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
     const windowParam = searchParams.get("window");
@@ -44,40 +40,29 @@ export async function GET(request: NextRequest) {
     }
     const window: PopularWindow =
       parsedWindow ?? DEFAULT_POPULAR_WINDOW;
-    const modeParam =
-      searchParams.get("feed") ?? (subreddit ? "community" : "popular");
-    const sortParam =
-      searchParams.get("sort") ?? (modeParam === "popular" ? "popular" : "new");
+    const sortParam = searchParams.get("sort") ?? "new";
     if (limitParam && Number.isNaN(limit)) {
       return await jsonLocalizedError("Invalid limit", 400);
     }
     if (!SORTS.has(sortParam as FeedSort)) {
       return await jsonLocalizedError("Invalid sort", 400);
     }
-    if (!MODES.has(modeParam as FeedMode)) {
-      return await jsonLocalizedError("Invalid feed mode", 400);
-    }
 
     const session = await getSession();
     const viewerUserId = session?.user?.id ?? null;
     const feed = await getFeedPosts({
       cursor,
-      subreddit,
       limit,
       viewerUserId,
       sort: sortParam as FeedSort,
-      mode: modeParam as FeedMode,
       window,
     });
     return NextResponse.json(
-      serializeFeed(
-        {
-          posts: feed.posts.map((post) => ({ ...post, kind: "post" as const })),
-          nextCursor: feed.nextCursor,
-          hasMore: feed.hasMore,
-        },
-        viewerUserId
-      ),
+      serializeFeed({
+        posts: feed.posts.map((post) => ({ ...post, kind: "post" as const })),
+        nextCursor: feed.nextCursor,
+        hasMore: feed.hasMore,
+      }),
       {
         headers: {
           "Cache-Control": "private, no-store",
@@ -114,25 +99,9 @@ export async function POST(request: NextRequest) {
 
     await requireActiveUser(user);
 
-    const db = await getDb();
-    const sub = await db
-      .prepare(
-        `SELECT id
-         FROM subreddits
-         WHERE name = ? COLLATE NOCASE AND is_removed = 0`
-      )
-      .bind(body.subreddit)
-      .first<{ id: string }>();
-
-    if (!sub) {
-      return await jsonLocalizedError("Community not found", 404);
-    }
-    const subredditId = sub.id;
-
     const result = await createPost({
       userId: user.id,
       userStatus: user.status,
-      subredditId,
       title: body.title,
       body: body.body,
       url: body.url,

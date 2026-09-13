@@ -64,12 +64,6 @@ const tableRows = query(
   "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'"
 );
 const tables = new Set(tableRows.map((row) => String(row.name)));
-const columns = new Map();
-for (const table of ["posts", "comments", "questions", "subreddits"]) {
-  if (!tables.has(table)) continue;
-  const rows = query(options, `PRAGMA table_info('${table}')`);
-  columns.set(table, new Set(rows.map((row) => String(row.name))));
-}
 
 let schema;
 if (options.schema) {
@@ -107,21 +101,6 @@ const counterRows = query(
       SELECT COUNT(*) FROM comments c
        WHERE c.post_id = p.id
          AND c.is_deleted = 0 AND c.is_removed = 0 AND c.is_shadow_hidden = 0
-    )
-   UNION ALL
-   SELECT 'question_answer_drift' AS check_name, COUNT(*) AS count
-     FROM questions q
-    WHERE q.answer_count != (
-      SELECT COUNT(*) FROM answers a
-       WHERE a.question_id = q.id
-         AND a.is_removed = 0 AND a.is_shadow_hidden = 0
-    )
-   UNION ALL
-   SELECT 'subscriber_drift' AS check_name, COUNT(*) AS count
-     FROM subreddits s
-    WHERE s.subscriber_count != (
-      SELECT COUNT(*) FROM subscriptions sub
-       WHERE sub.subreddit_id = s.id
     )`
 );
 const orphanRows = [
@@ -164,44 +143,13 @@ const orphanRows = [
     `SELECT 'user_mutes_muted' AS check_name, COUNT(*) AS count
        FROM user_mutes um
        LEFT JOIN "user" u ON u.id = um.muted_id
-      WHERE u.id IS NULL
-     UNION ALL
-     SELECT 'subscriptions_user' AS check_name, COUNT(*) AS count
-       FROM subscriptions s
-       LEFT JOIN "user" u ON u.id = s.user_id
-      WHERE u.id IS NULL
-     UNION ALL
-     SELECT 'subscriptions_subreddit' AS check_name, COUNT(*) AS count
-       FROM subscriptions s
-       LEFT JOIN subreddits sr ON sr.id = s.subreddit_id
-      WHERE sr.id IS NULL`
+      WHERE u.id IS NULL`
   ),
 ];
-
-const legacyRows = {};
-if (tables.has("votes")) {
-  legacyRows.votes = Number(
-    query(options, "SELECT COUNT(*) AS count FROM votes")[0]?.count ?? 0
-  );
-}
-for (const [table, column] of [
-  ["posts", "score"],
-  ["posts", "hot_score"],
-  ["comments", "score"],
-]) {
-  if (!columns.get(table)?.has(column)) continue;
-  legacyRows[`${table}.${column}_nonzero`] = Number(
-    query(
-      options,
-      `SELECT COUNT(*) AS count FROM ${table} WHERE ${column} != 0`
-    )[0]?.count ?? 0
-  );
-}
 
 const counts = {
   counterDrift: countMap(counterRows),
   orphans: countMap(orphanRows),
-  legacyRows,
 };
 const hasFailures =
   foreignKeyRows.length > 0 ||
@@ -219,7 +167,6 @@ console.log(
       },
       ...counts,
       ...(schema ? { schema } : {}),
-      note: "Legacy score and vote rows are reported, never rewritten or deleted.",
     },
     null,
     2

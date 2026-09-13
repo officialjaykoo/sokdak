@@ -132,18 +132,7 @@ async function settingInt(key: string, fallback: number): Promise<number> {
   return Number.isFinite(n) ? n : fallback;
 }
 
-type CreateKind =
-  | "post"
-  | "comment"
-  | "like"
-  | "dm_request"
-  | "dm_report"
-  | "question"
-  | "answer"
-  | "listing"
-  | "business"
-  | "business_verification"
-  | "booking";
+type CreateKind = "post" | "comment" | "like" | "dm_request" | "dm_report";
 
 const CREATE_DEFAULTS: Record<
   CreateKind,
@@ -178,42 +167,6 @@ const CREATE_DEFAULTS: Record<
     hour: 20,
     burstKey: "max_dm_reports_burst_per_min",
     burst: 5,
-  },
-  question: {
-    hourKey: "max_questions_per_hour",
-    hour: 5,
-    burstKey: "max_questions_burst_per_min",
-    burst: 2,
-  },
-  answer: {
-    hourKey: "max_answers_per_hour",
-    hour: 30,
-    burstKey: "max_answers_burst_per_min",
-    burst: 6,
-  },
-  listing: {
-    hourKey: "max_listings_per_hour",
-    hour: 10,
-    burstKey: "max_listings_burst_per_min",
-    burst: 3,
-  },
-  business: {
-    hourKey: "max_businesses_per_hour",
-    hour: 3,
-    burstKey: "max_businesses_burst_per_min",
-    burst: 1,
-  },
-  business_verification: {
-    hourKey: "max_business_verification_per_hour",
-    hour: 3,
-    burstKey: "max_business_verification_burst_per_min",
-    burst: 1,
-  },
-  booking: {
-    hourKey: "max_booking_requests_per_hour",
-    hour: 10,
-    burstKey: "max_booking_requests_burst_per_min",
-    burst: 3,
   },
 };
 
@@ -324,21 +277,4 @@ export async function enforceExpensiveIpRateLimit(
   }
 }
 
-export async function bumpUserActivity(
-  userId: string,
-  subredditId: string,
-  delta = 1
-) {
-  const db = await getDb();
-  await db
-    .prepare(
-      `INSERT INTO user_activity (user_id, subreddit_id, score, last_at)
-       VALUES (?, ?, ?, datetime('now'))
-       ON CONFLICT(user_id, subreddit_id) DO UPDATE SET
-         score = score + excluded.score,
-         last_at = datetime('now')`
-    )
-    .bind(userId, subredditId, delta)
-    .run();
-}
 

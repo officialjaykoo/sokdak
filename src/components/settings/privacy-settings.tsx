@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 
 import { useI18n } from "@/components/i18n/i18n-provider";
 import { useLocalizedError } from "@/components/i18n/use-localized-error";
@@ -136,7 +135,6 @@ export function PrivacySettings({
             {(
               [
                 ["anyone", "settings.dmsAnyone"],
-                ["followers", "settings.dmsFollowers"],
                 ["nobody", "settings.dmsNobody"],
               ] as const
             ).map(([value, labelKey]) => (
@@ -172,22 +170,14 @@ export function PrivacySettings({
                 key={user.id}
                 className="flex items-center justify-between gap-3 rounded-xl border border-border/50 px-3 py-2"
               >
-                {user.username ? (
-                  <Link
-                    href={`/u/${encodeURIComponent(user.username)}`}
-                    className="flex min-w-0 items-center gap-2"
-                  >
-                    <UserAvatar username={user.username} image={user.image} size="sm" />
-                    <span className="truncate text-sm font-medium">@{user.username}</span>
-                  </Link>
-                ) : (
-                  <div className="flex min-w-0 items-center gap-2">
-                    <UserAvatar username={null} image={user.image} size="sm" />
-                    <span className="truncate text-sm font-medium">
-                      {user.name || t("settings.unknownUser")}
-                    </span>
-                  </div>
-                )}
+                <div className="flex min-w-0 items-center gap-2">
+                  <UserAvatar username={user.username} image={user.image} size="sm" />
+                  <span className="truncate text-sm font-medium">
+                    {user.username
+                      ? `@${user.username}`
+                      : user.name || t("settings.unknownUser")}
+                  </span>
+                </div>
                 <Button
                   type="button"
                   size="sm"
@@ -215,19 +205,14 @@ export function PrivacySettings({
                 key={user.id}
                 className="flex items-center justify-between gap-3 rounded-xl border border-border/50 px-3 py-2"
               >
-                {user.username ? (
-                  <Link
-                    href={`/u/${encodeURIComponent(user.username)}`}
-                    className="flex min-w-0 items-center gap-2"
-                  >
-                    <UserAvatar username={user.username} image={user.image} size="sm" />
-                    <span className="truncate text-sm font-medium">@{user.username}</span>
-                  </Link>
-                ) : (
+                <div className="flex min-w-0 items-center gap-2">
+                  <UserAvatar username={user.username} image={user.image} size="sm" />
                   <span className="truncate text-sm font-medium">
-                    {user.name || t("settings.unknownUser")}
+                    {user.username
+                      ? `@${user.username}`
+                      : user.name || t("settings.unknownUser")}
                   </span>
-                )}
+                </div>
                 <Button
                   type="button"
                   size="sm"

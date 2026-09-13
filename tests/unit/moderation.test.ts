@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { findBannedWordHits } from "@/lib/moderation";
-import { slugifySubreddit } from "@/lib/permissions";
 
 describe("findBannedWordHits", () => {
   const words = [
@@ -26,12 +25,3 @@ describe("findBannedWordHits", () => {
   });
 });
 
-describe("slugifySubreddit", () => {
-  it("normalizes names", () => {
-    expect(slugifySubreddit(" Hello World! ")).toBe("hello_world");
-  });
-
-  it("trims length", () => {
-    expect(slugifySubreddit("a".repeat(40)).length).toBeLessThanOrEqual(32);
-  });
-});

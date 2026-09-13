@@ -66,7 +66,7 @@ describe("VAPID configuration", () => {
       inspectPushConfigValues({
         publicKey: "not-a-key",
         privateKey,
-        subject: "http://vth.kr",
+        subject: "http://sokdak.kr",
       })
     ).toEqual({ state: "invalid", publicKey: null });
   });
@@ -76,7 +76,7 @@ describe("VAPID configuration", () => {
       inspectPushConfigValues({
         publicKey,
         privateKey,
-        subject: "mailto:ops@vth.kr",
+        subject: "mailto:ops@sokdak.kr",
       })
     ).toEqual({ state: "configured", publicKey });
   });

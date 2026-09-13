@@ -4,7 +4,7 @@ import {
 } from "@/lib/username";
 
 export const SYNTHETIC_OAUTH_EMAIL_DOMAIN =
-  "oauth.viet-tai-han.invalid";
+  "oauth.sokdak.invalid";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

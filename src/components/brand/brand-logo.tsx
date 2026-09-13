@@ -1,5 +1,3 @@
-import Image from "next/image";
-
 import { cn } from "@/lib/utils";
 
 type BrandLogoProps = {
@@ -7,23 +5,23 @@ type BrandLogoProps = {
   className?: string;
 };
 
-const logoWidth = {
-  sm: "5rem",
-  md: "6.5rem",
-  lg: "14rem",
+const logoClass = {
+  sm: "text-base",
+  md: "text-lg",
+  lg: "text-4xl",
 } as const;
 
-/** VTH brand logo using the Vietnamese-Korean community mark. */
+/** Sokdak wordmark — text-based until a real logo asset exists. */
 export function BrandLogo({ size = "md", className }: BrandLogoProps) {
   return (
-    <Image
-      src="/vth-logo.png"
-      alt="Việt tại Hàn"
-      width={559}
-      height={343}
-      priority={size === "lg"}
-      style={{ width: logoWidth[size] }}
-      className={cn("h-auto object-contain", className)}
-    />
+    <span
+      className={cn(
+        "font-heading font-bold tracking-tight text-foreground select-none",
+        logoClass[size],
+        className
+      )}
+    >
+      속닥속닥
+    </span>
   );
 }

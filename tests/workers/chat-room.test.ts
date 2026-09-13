@@ -17,11 +17,11 @@ async function connect(
 ): Promise<{ socket: WebSocket; ready: Promise<string> }> {
   const stub = env.CHAT_ROOM.getByName(roomId);
   const response = await stub.fetch(
-    new Request(`https://vth-chat-room/connect?room=${roomId}`, {
+    new Request(`https://sokdak-chat-room/connect?room=${roomId}`, {
       headers: {
         Upgrade: "websocket",
-        "X-VTH-User-ID": userId,
-        "X-VTH-Realtime-Token": env.BETTER_AUTH_SECRET,
+        "X-Sokdak-User-ID": userId,
+        "X-Sokdak-Realtime-Token": env.BETTER_AUTH_SECRET,
       },
     })
   );
@@ -70,11 +70,11 @@ describe("ChatRoom", () => {
 
 
     const broadcast = await env.CHAT_ROOM.getByName(roomId).fetch(
-      new Request(`https://vth-chat-room/broadcast?room=${roomId}`, {
+      new Request(`https://sokdak-chat-room/broadcast?room=${roomId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-VTH-Realtime-Token": env.BETTER_AUTH_SECRET,
+          "X-Sokdak-Realtime-Token": env.BETTER_AUTH_SECRET,
         },
         body: JSON.stringify({
           roomId,
@@ -164,11 +164,11 @@ describe("ChatRoom", () => {
     ]);
 
     const delayedBroadcast = await env.CHAT_ROOM.getByName(roomId).fetch(
-      new Request(`https://vth-chat-room/broadcast?room=${roomId}`, {
+      new Request(`https://sokdak-chat-room/broadcast?room=${roomId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-VTH-Realtime-Token": env.BETTER_AUTH_SECRET,
+          "X-Sokdak-Realtime-Token": env.BETTER_AUTH_SECRET,
         },
         body: JSON.stringify({
           roomId,
@@ -240,11 +240,11 @@ describe("ChatRoom", () => {
 
     const revoke = await env.CHAT_ROOM.getByName(roomId).fetch(
       new Request(
-        `https://vth-chat-room/revoke?room=${roomId}&reason=account_banned`,
+        `https://sokdak-chat-room/revoke?room=${roomId}&reason=account_banned`,
         {
           method: "POST",
           headers: {
-            "X-VTH-Realtime-Token": env.BETTER_AUTH_SECRET,
+            "X-Sokdak-Realtime-Token": env.BETTER_AUTH_SECRET,
           },
         }
       )
@@ -285,11 +285,11 @@ describe("ChatRoom", () => {
     ]);
 
     const pending = await env.CHAT_ROOM.getByName(roomId).fetch(
-      new Request(`https://vth-chat-room/connect?room=${roomId}`, {
+      new Request(`https://sokdak-chat-room/connect?room=${roomId}`, {
         headers: {
           Upgrade: "websocket",
-          "X-VTH-User-ID": recipientId,
-          "X-VTH-Realtime-Token": env.BETTER_AUTH_SECRET,
+          "X-Sokdak-User-ID": recipientId,
+          "X-Sokdak-Realtime-Token": env.BETTER_AUTH_SECRET,
         },
       })
     );
@@ -309,11 +309,11 @@ describe("ChatRoom", () => {
       .run();
 
     const blocked = await env.CHAT_ROOM.getByName(roomId).fetch(
-      new Request(`https://vth-chat-room/connect?room=${roomId}`, {
+      new Request(`https://sokdak-chat-room/connect?room=${roomId}`, {
         headers: {
           Upgrade: "websocket",
-          "X-VTH-User-ID": senderId,
-          "X-VTH-Realtime-Token": env.BETTER_AUTH_SECRET,
+          "X-Sokdak-User-ID": senderId,
+          "X-Sokdak-Realtime-Token": env.BETTER_AUTH_SECRET,
         },
       })
     );

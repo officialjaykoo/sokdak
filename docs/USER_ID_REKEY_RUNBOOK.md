@@ -1,4 +1,4 @@
-# VTH user ID rekey runbook
+# Sokdak user ID rekey runbook
 
 This runbook changes canonical Better Auth `user.id` values. It must be executed during a maintenance window and only after a verified D1 backup.
 
@@ -14,13 +14,13 @@ This runbook changes canonical Better Auth `user.id` values. It must be executed
 Use a dated output path and retain it outside the repository:
 
 ```bash
-npx wrangler d1 export DB --remote --output .tmp/vth-db-backup-YYYYMMDD-HHmm.sql
+npx wrangler d1 export DB --remote --output .tmp/sokdak-db-backup-YYYYMMDD-HHmm.sql
 ```
 
 Record the user count and current dependency counts before mutation:
 
 ```bash
-npm run id:rekey:remote:dry-run -- --mapping .tmp/vth-user-id-rekey-map.json
+npm run id:rekey:remote:dry-run -- --mapping .tmp/sokdak-user-id-rekey-map.json
 ```
 
 The dry run is read-only. It writes the old-to-new mapping and SQL plan under `.tmp/`.
@@ -31,11 +31,11 @@ Review the mapping and SQL plan, then run the explicitly gated command:
 
 ```bash
 npm run id:rekey:remote:apply -- \
-  --mapping .tmp/vth-user-id-rekey-map.json \
+  --mapping .tmp/sokdak-user-id-rekey-map.json \
   --confirm-production-rekey
 ```
 
-The tool rejects remote mutation without `--confirm-production-rekey`. It updates all known user foreign keys, including `post_likes` and `comment_likes`, polymorphic user targets in `reports` and `moderation_actions`, denormalized friendship/DM pair keys, and `site_settings.updated_by`. It clears `session` and `verification`; `account` rows remain.
+The tool rejects remote mutation without `--confirm-production-rekey`. It updates all known user foreign keys — including `post_likes`, `comment_likes`, `post_saves`, `hidden_posts`, `media_objects`, polymorphic user targets in `reports` and `moderation_actions`, the denormalized `chat_rooms.pair_key`, and `site_settings.updated_by`. It clears `session` and `verification`; `account` rows remain.
 
 ## Post-checks
 
@@ -57,7 +57,6 @@ Expected results:
 
 - Durable Object socket tags are ephemeral and are recreated from current IDs.
 - R2 media keys do not contain user IDs.
-- Workers AI에는 사용자 ID 기반 영구 상태를 저장하지 않는다. 일반 배포 후 번역 작업은 D1 상태에 따라 재시도된다.
 - Cache entries and serialized edge payloads should be invalidated by the normal deploy/isolate lifecycle; do not copy old session cookies forward.
 
 ## Local verification

@@ -7,9 +7,6 @@ import { useEffect, useState, useTransition } from "react";
 
 import { useI18n } from "@/components/i18n/i18n-provider";
 import { useLocalizedError } from "@/components/i18n/use-localized-error";
-import {
-  shouldOfferTranslation,
-} from "@/components/content/translate-toggle";
 import { RelativeTime } from "@/components/time/relative-time";
 import { LikeButton } from "@/components/likes/like-button";
 import {
@@ -21,29 +18,26 @@ import {
 } from "@/components/ui/card";
 import { PostMedia } from "@/components/posts/post-media";
 import { PostOverflowMenu } from "@/components/posts/post-overflow-menu";
-import { SubredditLabel } from "@/components/posts/subreddit-label";
 import { AccountTags } from "@/components/user/account-tags";
-import { UserAvatar } from "@/components/user/user-avatar";
 import type { FeedPost, LikeMutation, LikeResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { getCanonicalPostUrl } from "@/lib/post-url";
-import type { DiscoverySource } from "@/lib/discovery";
 
 interface PostCardProps {
   post: FeedPost;
-  discoverySource?: DiscoverySource;
   showBody?: boolean;
+  canModerate?: boolean;
 }
 
 export function PostCard({
   post,
-  discoverySource = "popular",
   showBody = true,
+  canModerate = false,
 }: PostCardProps) {
   const router = useRouter();
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const localizeError = useLocalizedError();
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [liked, setLiked] = useState(post.liked);
@@ -52,30 +46,17 @@ export function PostCard({
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
-  const [showTranslation, setShowTranslation] = useState(false);
 
   useEffect(() => {
     const resetId = window.setTimeout(() => {
       setLikeCount(post.likeCount);
       setLiked(post.liked);
       setDismissed(false);
-      setShowTranslation(false);
       setShareMessage(null);
       setShareError(null);
     }, 0);
     return () => window.clearTimeout(resetId);
   }, [post.id, post.likeCount, post.liked]);
-
-  const offerTranslation = shouldOfferTranslation(post.translation, locale);
-  const showing =
-    offerTranslation && showTranslation && post.translation?.status === "ready";
-  const displayTitle =
-    showing && post.translation?.titleTranslated
-      ? post.translation.titleTranslated
-      : post.title;
-  const displayBody = showing
-    ? (post.translation?.bodyTranslated ?? post.body)
-    : post.body;
 
   if (dismissed) {
     return null;
@@ -135,8 +116,7 @@ export function PostCard({
       }
     });
   }
-  const canonicalPostHref = `/post/${encodeURIComponent(post.id)}`;
-  const postHref = `${canonicalPostHref}?src=${discoverySource}`;
+  const postHref = `/post/${encodeURIComponent(post.id)}`;
   async function sharePost(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
@@ -146,7 +126,7 @@ export function PostCard({
     const url = getCanonicalPostUrl(post.id, window.location.origin);
     try {
       if (typeof navigator.share === "function") {
-        await navigator.share({ title: displayTitle, url });
+        await navigator.share({ title: post.title, url });
       } else {
         await copyTextToClipboard(url);
         setShareMessage(t("post.linkCopied"));
@@ -197,48 +177,29 @@ export function PostCard({
         >
           <CardHeader className="gap-3 px-4 pt-4 pb-0">
             <div className="flex items-center gap-2.5">
-              <Link
-                href={`/u/${encodeURIComponent(post.author.username)}`}
-                prefetch={false}
-                aria-label={`@${post.author.username}`}
-                className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
-              >
-                <UserAvatar
-                  username={post.author.username}
-                  image={post.author.image}
-                  size="sm"
-                  className="ring-0"
-                />
-              </Link>
               <div className="min-w-0 flex-1">
                 <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 break-anywhere text-sm">
-                  <Link
-                    href={`/u/${encodeURIComponent(post.author.username)}`}
-                    prefetch={false}
-                    className="font-semibold text-foreground hover:underline"
-                  >
-                    {post.author.displayName || `@${post.author.username}`}
-                  </Link>
-                  {post.author.displayName ? (
-                    <span className="text-xs text-muted-foreground">
-                      @{post.author.username}
-                    </span>
-                  ) : null}
+                  <span className="font-semibold text-foreground">
+                    {t("board.anonymous")}({post.author.anonTag})
+                  </span>
                   <AccountTags tags={post.author.tags} />
                 </p>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
                   <RelativeTime value={post.createdAt} />
-                  <span aria-hidden>·</span>
-                  <SubredditLabel
-                    name={post.subreddit.name}
-                    className="font-normal text-muted-foreground hover:text-foreground"
-                  />
+                  {post.views > 0 ? (
+                    <span>
+                      · {t("board.views")} {post.views}
+                    </span>
+                  ) : null}
                 </p>
               </div>
               <div data-no-nav>
                 <PostOverflowMenu
                   postId={post.id}
-                  authorUsername={post.author.username}
+                  authorTag={post.author.anonTag}
+                  isAuthor={post.author.isAuthor}
+                  canModerate={canModerate}
+                  isNotice={post.isNotice}
                   saved={post.saved}
                   onDismiss={() => setDismissed(true)}
                 />
@@ -246,15 +207,15 @@ export function PostCard({
             </div>
             <CardTitle className="break-anywhere text-lg leading-snug font-semibold tracking-tight text-balance">
               <Link href={postHref} className="hover:underline">
-                {displayTitle}
+                {post.title}
               </Link>
             </CardTitle>
           </CardHeader>
 
-          {showBody && displayBody ? (
+          {showBody && post.body ? (
             <CardContent className="px-4 pt-2 pb-0">
               <p className="line-clamp-4 text-[15px] leading-relaxed text-card-foreground/85 [overflow-wrap:anywhere]">
-                {displayBody}
+                {post.body}
               </p>
             </CardContent>
           ) : null}
@@ -263,7 +224,7 @@ export function PostCard({
             <CardContent className="px-4 pt-3 pb-0">
               <PostMedia
                 mediaKey={post.mediaKey}
-                alt={displayTitle}
+                alt={post.title}
                 className="max-h-[32rem]"
               />
             </CardContent>
@@ -305,23 +266,6 @@ export function PostCard({
               <Share2Icon className="size-4 shrink-0" aria-hidden />
               <span>{t("post.share")}</span>
             </button>
-            {offerTranslation ? (
-              <button
-                type="button"
-                data-no-nav
-                className="inline-flex min-h-11 sm:min-h-9 items-center rounded-lg px-2 text-xs font-semibold leading-tight text-[var(--brand)] transition-colors hover:bg-[color-mix(in_oklch,var(--flag-gold)_18%,transparent)]"
-                aria-pressed={showTranslation}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowTranslation((v) => !v);
-                }}
-              >
-                {showTranslation
-                  ? t("translate.showOriginal")
-                  : t("translate.action")}
-              </button>
-            ) : null}
             {shareMessage ? (
               <span className="w-full px-2 text-xs text-muted-foreground" role="status">
                 {shareMessage}

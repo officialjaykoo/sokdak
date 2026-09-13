@@ -11,8 +11,6 @@ const secret = new TextEncoder().encode("test-feed-cursor-secret");
 
 const ctx: FeedCursorContext = {
   sort: "new",
-  mode: "popular",
-  subreddit: null,
   authorId: null,
   viewerId: null,
 };
@@ -64,7 +62,7 @@ describe("signed feed cursor", () => {
       now
     );
     await expect(
-      openFeedCursorWithSecret(secret, token, { ...ctx, mode: "home" }, now)
+      openFeedCursorWithSecret(secret, token, { ...ctx, sort: "popular" }, now)
     ).rejects.toBeInstanceOf(InvalidFeedCursorError);
     await expect(
       openFeedCursorWithSecret(secret, token, ctx, now + 120_000)

@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
-import { createComment, createPost, createSubreddit } from "@/lib/actions";
+import { createComment, createPost } from "@/lib/actions";
 import { getDmRelationship } from "@/lib/dm-relationships";
 import {
   cancelChatRequest,
@@ -15,15 +15,9 @@ import {
 import { setSiteSetting } from "@/lib/settings";
 import {
   blockUser,
-  followUser,
   getProfileRelation,
   unblockUser,
-  unfollowUser,
 } from "@/lib/user-actions";
-import {
-  acceptFriendRequest,
-  sendFriendRequest,
-} from "@/lib/friends";
 import {
   canNotifyChat,
   createNotification,
@@ -319,44 +313,16 @@ describe("DM relationship policy (D1)", () => {
   });
 
 
-  it("uses opposite follow directions for direct access and request privacy", async () => {
+  it("gates new conversations on the recipient DM setting", async () => {
     const cases: Array<{
       allowDms: "anyone" | "followers" | "nobody";
-      senderFollowsRecipient?: boolean;
-      recipientFollowsSender?: boolean;
-      friends?: boolean;
-      expected: "direct" | "request" | "reject";
+      expected: "request" | "reject";
     }> = [
       { allowDms: "anyone", expected: "request" },
-      {
-        allowDms: "followers",
-        senderFollowsRecipient: true,
-        expected: "request",
-      },
-      {
-        allowDms: "followers",
-        recipientFollowsSender: true,
-        expected: "direct",
-      },
-      {
-        allowDms: "followers",
-        senderFollowsRecipient: true,
-        recipientFollowsSender: true,
-        expected: "direct",
-      },
+      // "followers" is a legacy stored value: the follow graph was removed,
+      // so it must no longer grant request access.
       { allowDms: "followers", expected: "reject" },
       { allowDms: "nobody", expected: "reject" },
-      {
-        allowDms: "nobody",
-        senderFollowsRecipient: true,
-        expected: "reject",
-      },
-      {
-        allowDms: "nobody",
-        recipientFollowsSender: true,
-        expected: "direct",
-      },
-      { allowDms: "nobody", friends: true, expected: "direct" },
     ];
 
     for (const [index, policy] of cases.entries()) {
@@ -368,31 +334,13 @@ describe("DM relationship policy (D1)", () => {
         }),
       ]);
 
-      if (policy.senderFollowsRecipient) {
-        await followUser(pair.senderId, pair.recipientId);
-      }
-      if (policy.recipientFollowsSender) {
-        await followUser(pair.recipientId, pair.senderId);
-      }
-      if (policy.friends) {
-        const friendRequest = await sendFriendRequest(
-          pair.senderId,
-          pair.recipientId
-        );
-        await acceptFriendRequest(pair.recipientId, friendRequest.requestId!);
-      }
-
       const relationship = await getDmRelationship({
         senderId: pair.senderId,
         recipientId: pair.recipientId,
       });
-      expect(relationship.senderFollowsRecipient).toBe(
-        Boolean(policy.senderFollowsRecipient)
-      );
-      expect(relationship.recipientFollowsSender).toBe(
-        Boolean(policy.recipientFollowsSender)
-      );
-      expect(relationship.friends).toBe(Boolean(policy.friends));
+      expect(relationship.allowDms).toBe(policy.allowDms);
+      expect(relationship.blocked).toBe(false);
+      expect(relationship.requestAllowed).toBe(policy.expected === "request");
 
       if (policy.expected === "reject") {
         await expect(start(pair.senderId, pair.recipientUsername)).rejects.toMatchObject({
@@ -401,12 +349,12 @@ describe("DM relationship policy (D1)", () => {
         });
       } else {
         const result = await start(pair.senderId, pair.recipientUsername);
-        expect(result.conversationType).toBe(policy.expected);
+        expect(result.conversationType).toBe("request");
       }
     }
   });
 
-  it("promotes pending requests, reuses rooms, survives unfollow, and blocks writes", async () => {
+  it("promotes pending requests on accept, reuses rooms, and blocks writes", async () => {
     const suffix = crypto.randomUUID().slice(0, 8);
     const pair = ids(`transition_${suffix}`, 0);
     await Promise.all([
@@ -414,18 +362,23 @@ describe("DM relationship policy (D1)", () => {
       insertUser(pair.recipientId, pair.recipientUsername),
     ]);
 
+    await setSiteSetting("dm_enabled", "true");
     const request = await start(pair.senderId, pair.recipientUsername, "Pending opener");
     expect(request.conversationType).toBe("request");
     expect(request.requestId).toBeTruthy();
 
-    await followUser(pair.recipientId, pair.senderId);
+    await respondToChatRequest({
+      requestId: request.requestId!,
+      userId: pair.recipientId,
+      accept: true,
+    });
     await flushBackgroundWork();
-    const followNotifications = await listNotifications(pair.senderId);
+    const acceptNotifications = await listNotifications(pair.senderId);
     expect(
-      followNotifications.some(
+      acceptNotifications.some(
         (notification) =>
           notification.kind === "chat_accepted" &&
-          notification.title.includes("You can now message @")
+          notification.title.includes("accepted your message request")
       )
     ).toBe(true);
 
@@ -478,7 +431,6 @@ describe("DM relationship policy (D1)", () => {
       .first<{ count: number }>();
     expect(Number(messageCount?.count)).toBe(1);
 
-    await unfollowUser(pair.recipientId, pair.senderId);
     await env.DB
       .prepare(`UPDATE "user" SET allowDms = 'nobody' WHERE id = ?`)
       .bind(pair.recipientId)
@@ -489,13 +441,13 @@ describe("DM relationship policy (D1)", () => {
       canMessage: true,
     });
 
-    const afterUnfollow = await start(
+    const afterLockdown = await start(
       pair.senderId,
       pair.recipientUsername,
       "Existing room remains open"
     );
-    expect(afterUnfollow.conversationType).toBe("direct");
-    expect(afterUnfollow.roomId).toBe(request.roomId);
+    expect(afterLockdown.conversationType).toBe("direct");
+    expect(afterLockdown.roomId).toBe(request.roomId);
 
     const listedBeforeBlock = await listChatRooms(pair.senderId);
     expect(listedBeforeBlock.some((room) => room.id === request.roomId)).toBe(true);
@@ -537,14 +489,18 @@ describe("DM relationship policy (D1)", () => {
       insertUser(pair.senderId, pair.senderUsername),
       insertUser(pair.recipientId, pair.recipientUsername),
     ]);
-    await followUser(pair.recipientId, pair.senderId);
 
-    const first = await start(
+    const request = await start(
       pair.senderId,
       pair.recipientUsername,
       "History before block"
     );
-    expect(first.conversationType).toBe("direct");
+    await respondToChatRequest({
+      requestId: request.requestId!,
+      userId: pair.recipientId,
+      accept: true,
+    });
+    const first = { roomId: request.roomId };
     await expect(
       getChatMessages({ roomId: first.roomId, userId: pair.recipientId })
     ).resolves.toMatchObject({
@@ -557,13 +513,17 @@ describe("DM relationship policy (D1)", () => {
     ).rejects.toMatchObject({ status: 404 });
 
     await unblockUser(pair.recipientId, pair.senderId);
-    await followUser(pair.recipientId, pair.senderId);
     const reopened = await start(
       pair.senderId,
       pair.recipientUsername,
       "History after unblock"
     );
     expect(reopened.roomId).toBe(first.roomId);
+    await respondToChatRequest({
+      requestId: reopened.requestId!,
+      userId: pair.recipientId,
+      accept: true,
+    });
     const history = await getChatMessages({
       roomId: first.roomId,
       userId: pair.recipientId,
@@ -574,18 +534,18 @@ describe("DM relationship policy (D1)", () => {
     ]);
   });
 
-  it("uses the automatic message for friendship promotion", async () => {
-    const pair = ids("friend-promotion", 0);
+  it("notifies the requester with the automatic message on accept", async () => {
+    const pair = ids("accept-promotion", 0);
     await Promise.all([
       insertUser(pair.senderId, pair.senderUsername),
       insertUser(pair.recipientId, pair.recipientUsername),
     ]);
     const request = await start(pair.senderId, pair.recipientUsername);
-    const friendRequest = await sendFriendRequest(
-      pair.senderId,
-      pair.recipientId
-    );
-    await acceptFriendRequest(pair.recipientId, friendRequest.requestId!);
+    await respondToChatRequest({
+      requestId: request.requestId!,
+      userId: pair.recipientId,
+      accept: true,
+    });
 
     await flushBackgroundWork();
     const notifications = await listNotifications(pair.senderId);
@@ -594,7 +554,7 @@ describe("DM relationship policy (D1)", () => {
         (notification) =>
           notification.kind === "chat_accepted" &&
           notification.title ===
-            `You can now message @${pair.recipientUsername} directly`
+            `@${pair.recipientUsername} accepted your message request`
       )
     ).toBe(true);
     expect(
@@ -674,14 +634,8 @@ describe("DM relationship policy (D1)", () => {
       insertUser(actorId, `normal_actor_${suffix}`),
     ]);
 
-    const community = await createSubreddit({
-      actor: { id: adminId, role: "admin", status: "active" },
-      name: `normal_${suffix}`,
-      title: "Admin-created community",
-    });
     const post = await createPost({
       userId: creatorId,
-      subredditId: community.id,
       title: "Normal users can create posts",
       body: "Negative reputation does not block creation.",
     });
@@ -707,9 +661,9 @@ describe("DM relationship policy (D1)", () => {
 
     expect(await canNotifyChat(recipientId, actorId)).toBe(false);
     const kinds = [
-      "follow",
-      "friend_request",
-      "friend_accepted",
+      "comment_on_post",
+      "reply_to_comment",
+      "mention",
       "chat_request",
       "chat_accepted",
     ] as const;

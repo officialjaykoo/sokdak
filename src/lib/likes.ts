@@ -14,7 +14,6 @@ async function mutatePostLike(input: {
     .prepare(
       `SELECT p.id, p.author_id, p.like_count
        FROM posts p
-       INNER JOIN subreddits s ON s.id = p.subreddit_id
        WHERE p.id = ? AND ${publicPostVisibilitySql()}`
     )
     .bind(input.postId)
@@ -126,7 +125,6 @@ async function mutateCommentLike(input: {
       `SELECT c.id, c.author_id, c.like_count
        FROM comments c
        INNER JOIN posts p ON p.id = c.post_id
-       INNER JOIN subreddits s ON s.id = p.subreddit_id
        WHERE c.id = ?
          AND c.is_removed = 0
          AND c.is_deleted = 0

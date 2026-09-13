@@ -1,23 +1,23 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
-import { getPostDetail, getRecommendations } from "@/lib/content";
+import { getPostDetail } from "@/lib/content";
 import { getFeedPosts } from "@/lib/db";
 import { createNotification, listNotifications } from "@/lib/notifications";
 import { listSavedPosts, setPostSaved } from "@/lib/post-saves";
 import { searchAll } from "@/lib/search";
 import { muteUser, unmuteUser } from "@/lib/user-actions";
-import { seedUsersAndSubreddit } from "./helpers";
+import { seedUsers } from "./helpers";
 
 describe("personal content controls (D1)", () => {
   it("keeps saves private, idempotent, and independent from engagement", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const postId = `saved_post_${crypto.randomUUID()}`;
     await env.DB.prepare(
-      `INSERT INTO posts (id, subreddit_id, author_id, title, body, like_count, comment_count)
-       VALUES (?, ?, ?, 'Saved control post', 'save control body', 4, 2)`
+      `INSERT INTO posts (id, author_id, title, body, like_count, comment_count)
+       VALUES (?, ?, 'Saved control post', 'save control body', 4, 2)`
     )
-      .bind(postId, subredditId, authorId)
+      .bind(postId, authorId)
       .run();
 
     await expect(setPostSaved({ userId: actorId, postId, saved: true })).resolves.toEqual({
@@ -55,29 +55,26 @@ describe("personal content controls (D1)", () => {
   });
 
   it("hides muted authors only from discovery and ordinary notifications", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const postId = `muted_post_${crypto.randomUUID()}`;
     await env.DB.prepare(
-      `INSERT INTO posts (id, subreddit_id, author_id, title, body)
-       VALUES (?, ?, ?, 'Muted discovery post', 'muted discovery body')`
+      `INSERT INTO posts (id, author_id, title, body)
+       VALUES (?, ?, 'Muted discovery post', 'muted discovery body')`
     )
-      .bind(postId, subredditId, authorId)
+      .bind(postId, authorId)
       .run();
     await setPostSaved({ userId: actorId, postId, saved: true });
     await muteUser(actorId, authorId);
 
     const feed = await getFeedPosts({
-      mode: "popular",
       sort: "popular",
       window: "all",
       viewerUserId: actorId,
     });
     expect(feed.posts.map((post) => post.id)).not.toContain(postId);
     expect((await searchAll("Muted discovery", {}, actorId)).posts.map((post) => post.id)).not.toContain(postId);
-    expect(
-      (await searchAll("author_", {}, actorId)).accounts.map((account) => account.username)
-    ).not.toContain(`author_${actorId.split("_").at(-1)}`);
-    expect((await getRecommendations(actorId)).map((post) => post.id)).not.toContain(postId);
+    // Anonymous board: search is posts-only — account discovery is gone.
+    expect((await searchAll("author_", {}, actorId)).posts).toBeDefined();
     expect((await listSavedPosts(actorId)).map((post) => post.id)).toContain(postId);
     expect(await getPostDetail(postId, actorId)).toMatchObject({ id: postId });
 
@@ -98,7 +95,6 @@ describe("personal content controls (D1)", () => {
     await unmuteUser(actorId, authorId);
     expect(
       (await getFeedPosts({
-        mode: "popular",
         sort: "popular",
         window: "all",
         viewerUserId: actorId,
@@ -106,24 +102,23 @@ describe("personal content controls (D1)", () => {
     ).toContain(postId);
   });
   it("applies UTC popular windows without changing the rank formula", async () => {
-    const { authorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId} = await seedUsers();
     const recentId = `window_recent_${crypto.randomUUID()}`;
     const oldId = `window_old_${crypto.randomUUID()}`;
     await env.DB.batch([
       env.DB.prepare(
         `INSERT INTO posts (
-           id, subreddit_id, author_id, title, body, like_count, comment_count, created_at
-         ) VALUES (?, ?, ?, 'Recent window post', 'body', 2, 1, datetime('now'))`
-      ).bind(recentId, subredditId, authorId),
+           id, author_id, title, body, like_count, comment_count, created_at
+         ) VALUES (?, ?, 'Recent window post', 'body', 2, 1, datetime('now'))`
+      ).bind(recentId, authorId),
       env.DB.prepare(
         `INSERT INTO posts (
-           id, subreddit_id, author_id, title, body, like_count, comment_count, created_at
-         ) VALUES (?, ?, ?, 'Old window post', 'body', 20, 0, datetime('now', '-2 days'))`
-      ).bind(oldId, subredditId, authorId),
+           id, author_id, title, body, like_count, comment_count, created_at
+         ) VALUES (?, ?, 'Old window post', 'body', 20, 0, datetime('now', '-2 days'))`
+      ).bind(oldId, authorId),
     ]);
 
     const today = await getFeedPosts({
-      mode: "popular",
       sort: "popular",
       window: "day",
     });
@@ -131,7 +126,6 @@ describe("personal content controls (D1)", () => {
     expect(today.posts.map((post) => post.id)).not.toContain(oldId);
 
     const allTime = await getFeedPosts({
-      mode: "popular",
       sort: "popular",
       window: "all",
     });

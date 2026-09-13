@@ -21,7 +21,6 @@ export type UserSettings = {
   theme: ThemePreference;
   allowDms: AllowDms;
   notifyComments: boolean;
-  notifyFollows: boolean;
   notifyChat: boolean;
   notifyMentions: boolean;
 };
@@ -43,7 +42,7 @@ export async function getUserSettings(
       `SELECT id, username, onboardingUsernameCandidate, usernameChangedAt,
               name, contactEmail, onboardingComplete,
               image, bio, bannerKey, preferredLanguage, theme,
-              allowDms, notifyComments, notifyFollows, notifyChat, notifyMentions
+              allowDms, notifyComments, notifyChat, notifyMentions
        FROM "user" WHERE id = ?`
     )
     .bind(userId)
@@ -62,7 +61,6 @@ export async function getUserSettings(
       theme: string;
       allowDms: string;
       notifyComments: number;
-      notifyFollows: number;
       notifyChat: number;
       notifyMentions: number;
     }>();
@@ -84,7 +82,6 @@ export async function getUserSettings(
     theme: isTheme(row.theme) ? row.theme : "system",
     allowDms: isAllowDms(row.allowDms) ? row.allowDms : "anyone",
     notifyComments: Boolean(row.notifyComments),
-    notifyFollows: Boolean(row.notifyFollows),
     notifyChat: Boolean(row.notifyChat),
     notifyMentions: Boolean(row.notifyMentions),
   };
@@ -157,7 +154,6 @@ export async function updateUserPreferences(input: {
   preferredLanguage?: Locale;
   allowDms?: AllowDms;
   notifyComments?: boolean;
-  notifyFollows?: boolean;
   notifyChat?: boolean;
   notifyMentions?: boolean;
 }) {
@@ -179,7 +175,6 @@ export async function updateUserPreferences(input: {
   }
   for (const field of [
     "notifyComments",
-    "notifyFollows",
     "notifyChat",
     "notifyMentions",
   ] as const) {
@@ -197,14 +192,6 @@ export async function updateUserPreferences(input: {
         ? 1
         : 0
       : current.notifyComments
-        ? 1
-        : 0;
-  const notifyFollows =
-    input.notifyFollows !== undefined
-      ? input.notifyFollows
-        ? 1
-        : 0
-      : current.notifyFollows
         ? 1
         : 0;
   const notifyChat =
@@ -228,7 +215,7 @@ export async function updateUserPreferences(input: {
     .prepare(
       `UPDATE "user"
        SET theme = ?, preferredLanguage = ?, allowDms = ?,
-           notifyComments = ?, notifyFollows = ?,
+           notifyComments = ?,
            notifyChat = ?, notifyMentions = ?, updatedAt = datetime('now')
        WHERE id = ?`
     )
@@ -237,7 +224,6 @@ export async function updateUserPreferences(input: {
       preferredLanguage,
       allowDms,
       notifyComments,
-      notifyFollows,
       notifyChat,
       notifyMentions,
       input.userId

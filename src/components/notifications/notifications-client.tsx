@@ -32,9 +32,6 @@ type NotificationItem = {
 const KIND_KEYS: Record<string, MessageKey> = {
   comment_on_post: "notify.commentOnPost",
   reply_to_comment: "notify.replyToComment",
-  follow: "notify.follow",
-  friend_request: "notify.friendRequest",
-  friend_accepted: "notify.friendAccepted",
   chat_request: "notify.chatRequest",
   chat_accepted: "notify.chatAccepted",
   warning: "notify.warning",
@@ -98,11 +95,7 @@ export function NotificationsClient() {
   function titleFor(item: NotificationItem): string {
     const key = KIND_KEYS[item.kind];
     if (!key) return item.title;
-    const actor = item.actor?.username
-      ? `@${item.actor.username}`
-      : locale === "ko"
-        ? "누군가"
-        : "một người nào đó";
+    const actor = locale === "ko" ? "익명" : "someone";
     return t(key, { actor });
   }
 
@@ -142,11 +135,7 @@ export function NotificationsClient() {
                   : "border-[color-mix(in_oklch,var(--brand)_35%,transparent)] bg-[color-mix(in_oklch,var(--brand)_6%,transparent)] hover:bg-[color-mix(in_oklch,var(--brand)_10%,transparent)]"
               )}
             >
-              <UserAvatar
-                username={item.actor?.username}
-                image={item.actor?.image}
-                size="sm"
-              />
+              <UserAvatar size="sm" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{titleFor(item)}</p>
                 {item.body ? (

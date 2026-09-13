@@ -5,11 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   MessageSquareIcon,
-  RssIcon,
-  UserPlusIcon,
-  UserRoundCheckIcon,
   UserRoundXIcon,
-  UsersRoundIcon,
   Volume2Icon,
   VolumeXIcon,
 } from "lucide-react";
@@ -22,18 +18,7 @@ import { apiFetch } from "@/lib/api-client";
 import { getUsernameProfileHref } from "@/lib/profile-url";
 import type { RelationshipProjection } from "@/lib/user-actions";
 
-type Action =
-  | "follow"
-  | "unfollow"
-  | "block"
-  | "unblock"
-  | "mute"
-  | "unmute"
-  | "friend_request"
-  | "friend_cancel"
-  | "friend_remove"
-  | "friend_accept"
-  | "friend_decline";
+type Action = "block" | "unblock" | "mute" | "unmute";
 
 type RelationshipResponse = {
   relationship?: RelationshipProjection;
@@ -69,23 +54,12 @@ export function ProfileActions({
     setError(null);
     startTransition(async () => {
       try {
-        const isFriendApi =
-          action === "friend_accept" || action === "friend_decline";
         const isBlockApi = action === "block" || action === "unblock";
         const endpoint = isBlockApi
           ? `/api/me/blocks/${encodeURIComponent(targetUserId)}`
-          : isFriendApi
-            ? "/api/friends"
-            : `/api/users/${encodeURIComponent(username)}`;
+          : `/api/users/${encodeURIComponent(username)}`;
         const method = action === "unblock" ? "DELETE" : "POST";
-        const body = isBlockApi
-          ? undefined
-          : isFriendApi
-            ? {
-                action: action === "friend_accept" ? "accept" : "decline",
-                requestId: relationship.friendRequestId,
-              }
-            : { action };
+        const body = isBlockApi ? undefined : { action };
         const res = await apiFetch(endpoint, {
           method,
           ...(body
@@ -124,8 +98,6 @@ export function ProfileActions({
   }
 
   const blockedByMe = relationship.blockState === "blocked_by_me";
-  const friendState = relationship.friendState;
-  const friendRequestId = relationship.friendRequestId;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -140,95 +112,6 @@ export function ProfileActions({
           <MessageSquareIcon className="size-4" aria-hidden />
           {t("profile.message")}
         </Link>
-      ) : null}
-      {relationship.canInteract ? (
-        <>
-          {friendState === "incoming_pending" ? (
-            <>
-              <Button
-                type="button"
-                size="sm"
-                className={buttonClass}
-                disabled={pending || !friendRequestId}
-                onClick={() => run("friend_accept")}
-              >
-                <UserRoundCheckIcon className="size-4" aria-hidden />
-                {t("profile.acceptFriend")}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className={buttonClass}
-                disabled={pending || !friendRequestId}
-                onClick={() => run("friend_decline")}
-              >
-                {t("profile.declineFriend")}
-              </Button>
-            </>
-          ) : (
-            <Button
-              type="button"
-              size="sm"
-              variant={friendState === "none" ? "default" : "secondary"}
-              className={buttonClass}
-              disabled={pending}
-              onClick={() =>
-                run(
-                  friendState === "none"
-                    ? "friend_request"
-                    : friendState === "outgoing_pending"
-                      ? "friend_cancel"
-                      : "friend_remove"
-                )
-              }
-              title={
-                friendState === "outgoing_pending"
-                  ? t("profile.cancelFriend")
-                  : friendState === "friends"
-                    ? t("profile.removeFriend")
-                    : undefined
-              }
-            >
-              {friendState === "none" ? (
-                <UserPlusIcon className="size-4" aria-hidden />
-              ) : friendState === "friends" ? (
-                <UsersRoundIcon className="size-4" aria-hidden />
-              ) : (
-                <UserRoundCheckIcon className="size-4" aria-hidden />
-              )}
-              {friendState === "none"
-                ? t("profile.addFriend")
-                : friendState === "outgoing_pending"
-                  ? t("profile.friendRequestSent")
-                  : t("profile.friends")}
-            </Button>
-          )}
-        </>
-      ) : null}
-      {relationship.canInteract ? (
-        <Button
-          type="button"
-          size="sm"
-          variant={relationship.followState === "following" ? "outline" : "default"}
-          className={buttonClass}
-          disabled={pending}
-          onClick={() =>
-            run(
-              relationship.followState === "following" ? "unfollow" : "follow"
-            )
-          }
-          title={
-            relationship.followState === "following"
-              ? t("profile.unfollow")
-              : t("profile.follow")
-          }
-        >
-          <RssIcon className="size-4" aria-hidden />
-          {relationship.followState === "following"
-            ? t("profile.unfollow")
-            : t("profile.follow")}
-        </Button>
       ) : null}
       {!relationship.isSelf ? (
         <Button

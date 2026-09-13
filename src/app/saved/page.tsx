@@ -37,7 +37,7 @@ export default async function SavedPostsPage() {
           ) : (
             <div className="mx-auto w-full max-w-2xl space-y-3">
               {posts.map((post) => (
-                <PostCard key={post.id} post={post} discoverySource="shared" />
+                <PostCard key={post.id} post={post} />
               ))}
             </div>
           )}

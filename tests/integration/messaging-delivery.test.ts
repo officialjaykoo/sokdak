@@ -23,7 +23,7 @@ import {
   reviewChatMessageReport,
 } from "@/lib/dm-moderation";
 import { getUnreadCounts } from "@/lib/unread";
-import { seedUsersAndSubreddit } from "./helpers";
+import { seedUsers } from "./helpers";
 
 async function usernameFor(userId: string): Promise<string> {
   const row = await env.DB
@@ -40,7 +40,7 @@ async function flushBackgroundWork() {
 
 describe("messaging delivery (D1)", () => {
   it("fans out unread counts, marks messages read, and moderates reports", async () => {
-    const { authorId, actorId } = await seedUsersAndSubreddit();
+    const { authorId, actorId } = await seedUsers();
     const actorUsername = await usernameFor(actorId);
     const request = await startChatRequest({
       fromUserId: authorId,
@@ -132,7 +132,7 @@ describe("messaging delivery (D1)", () => {
 
   });
   it("reports a bounded conversation context and validates membership", async () => {
-    const { authorId, actorId } = await seedUsersAndSubreddit();
+    const { authorId, actorId } = await seedUsers();
     const outsiderId = `u_outsider_${crypto.randomUUID().slice(0, 8)}`;
     await env.DB.prepare(
       `INSERT INTO "user" (id, name, email, emailVerified, username, role, status)
@@ -251,7 +251,7 @@ describe("messaging delivery (D1)", () => {
     ).toBe(true);
   });
   it("makes concurrent request acceptance idempotent", async () => {
-    const { authorId, actorId } = await seedUsersAndSubreddit();
+    const { authorId, actorId } = await seedUsers();
     const request = await startChatRequest({
       fromUserId: authorId,
       toUsername: await usernameFor(actorId),
@@ -288,7 +288,7 @@ describe("messaging delivery (D1)", () => {
   });
 
   it("keeps notification fanout in sync when notifications are read", async () => {
-    const { authorId, actorId } = await seedUsersAndSubreddit();
+    const { authorId, actorId } = await seedUsers();
     const notificationId = await createNotification({
       userId: actorId,
       actorId: authorId,

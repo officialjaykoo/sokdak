@@ -2,7 +2,6 @@ import Link from "next/link";
 import { MessageSquare } from "lucide-react";
 
 import { RelativeTime } from "@/components/time/relative-time";
-import { SubredditLabel } from "@/components/posts/subreddit-label";
 import { tLocale } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/config";
 import type { ProfileComment } from "@/lib/content";
@@ -30,8 +29,6 @@ export function ProfileCommentCard({
         <span className="font-medium text-foreground">
           {tLocale(locale, "comments.comment")}
         </span>
-        <span aria-hidden>·</span>
-        <SubredditLabel name={comment.subreddit.name} />
         <span aria-hidden>·</span>
         <RelativeTime value={comment.createdAt} />
       </p>

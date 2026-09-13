@@ -5,18 +5,18 @@ import {
   listReviewQueue,
   reviewContentReport,
 } from "@/lib/review-queue";
-import { seedUsersAndSubreddit } from "./helpers";
+import { seedUsers } from "./helpers";
 
 describe("unified review queue (D1)", () => {
   it("projects content reports and keeps dismissal non-destructive", async () => {
-    const { adminId, authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { adminId, authorId, actorId} = await seedUsers();
     const postId = `review_post_${crypto.randomUUID()}`;
     const dismissedReportId = `review_report_${crypto.randomUUID()}`;
     await env.DB.prepare(
-      `INSERT INTO posts (id, subreddit_id, author_id, title, body)
-       VALUES (?, ?, ?, 'Review queue post', 'public report body')`
+      `INSERT INTO posts (id, author_id, title, body)
+       VALUES (?, ?, 'Review queue post', 'public report body')`
     )
-      .bind(postId, subredditId, authorId)
+      .bind(postId, authorId)
       .run();
     await env.DB.prepare(
       `INSERT INTO reports (id, reporter_id, target_type, target_id, reason, details)
@@ -53,14 +53,14 @@ describe("unified review queue (D1)", () => {
   });
 
   it("actioning a report removes the target and records moderation audit", async () => {
-    const { adminId, authorId, subredditId } = await seedUsersAndSubreddit();
+    const { adminId, authorId} = await seedUsers();
     const postId = `action_review_post_${crypto.randomUUID()}`;
     const reportId = `action_review_report_${crypto.randomUUID()}`;
     await env.DB.prepare(
-      `INSERT INTO posts (id, subreddit_id, author_id, title, body)
-       VALUES (?, ?, ?, 'Action review post', 'body')`
+      `INSERT INTO posts (id, author_id, title, body)
+       VALUES (?, ?, 'Action review post', 'body')`
     )
-      .bind(postId, subredditId, authorId)
+      .bind(postId, authorId)
       .run();
     await env.DB.prepare(
       `INSERT INTO reports (id, reporter_id, target_type, target_id, reason)

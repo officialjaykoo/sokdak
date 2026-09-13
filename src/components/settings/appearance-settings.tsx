@@ -19,7 +19,6 @@ import type {
 import type { UserSettings } from "@/lib/user-settings";
 
 const LANGUAGE_LABEL_KEYS = {
-  vi: "language.vietnamese",
   ko: "language.korean",
   en: "language.english",
 } as const;

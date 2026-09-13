@@ -11,19 +11,8 @@ export interface UserRow {
   created_at: string;
 }
 
-export interface SubredditRow {
-  id: string;
-  name: string;
-  title: string;
-  description: string | null;
-  icon_url: string | null;
-  subscriber_count: number;
-  created_at: string;
-}
-
 export interface PostRow {
   id: string;
-  subreddit_id: string;
   author_id: string;
   title: string;
   body: string | null;
@@ -31,7 +20,6 @@ export interface PostRow {
   media_key: string | null;
   like_count: number;
   comment_count: number;
-  is_nsfw: number;
   is_locked: number;
   created_at: string;
   updated_at: string;
@@ -51,47 +39,28 @@ export interface CommentRow {
   updated_at: string;
 }
 
-export type ContentTargetLang = "vi" | "ko";
-export type ContentSourceLang = ContentTargetLang | "en" | "ru" | "other";
-export type ContentTranslationStatus =
-  | "pending"
-  | "ready"
-  | "skipped"
-  | "failed";
-
-export interface ContentTranslation {
-  sourceLang: ContentSourceLang | null;
-  targetLang: ContentTargetLang | null;
-  status: ContentTranslationStatus;
-  titleTranslated: string | null;
-  bodyTranslated: string | null;
-}
-
 export interface FeedPost {
   id: string;
+  /** Stable board number (SQLite rowid). */
+  num: number;
   title: string;
   body: string | null;
   url: string | null;
   mediaKey: string | null;
   likeCount: number;
   commentCount: number;
+  views: number;
+  isNotice: boolean;
   createdAt: string;
   liked: ViewerLike;
   saved: boolean;
-  translation: ContentTranslation | null;
   author: {
-    /** Internal only — omitted from public API serializers. */
+    /** Internal only — never serialized to the public API. */
     id?: string;
-    username: string;
-    displayName: string | null;
-    image: string | null;
+    /** Per-thread anonymous tag, e.g. "ab12" for 익명(ab12). */
+    anonTag: string;
     tags: AccountTag[];
     isAuthor: boolean;
-  };
-  subreddit: {
-    id: string;
-    name: string;
-    title: string;
   };
 }
 

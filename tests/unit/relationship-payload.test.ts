@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   AuthError,
   mockBlockUser,
-  mockFollowUser,
   mockGetDb,
   mockGetProfileRelation,
+  mockMuteUser,
   mockReadApiJson,
   mockRequireSession,
   mockUnblockUser,
@@ -24,9 +24,9 @@ const {
   return {
     AuthError: TestAuthError,
     mockBlockUser: vi.fn(),
-    mockFollowUser: vi.fn(),
     mockGetDb: vi.fn(),
     mockGetProfileRelation: vi.fn(),
+    mockMuteUser: vi.fn(),
     mockReadApiJson: vi.fn(),
     mockRequireSession: vi.fn(),
     mockUnblockUser: vi.fn(),
@@ -34,17 +34,6 @@ const {
 });
 
 vi.mock("@/lib/db", () => ({ getDb: mockGetDb }));
-vi.mock("@/lib/friends", () => ({
-  acceptFriendRequest: vi.fn(),
-  cancelFriendRequest: vi.fn(),
-  cancelFriendRequestByUsers: vi.fn(),
-  declineFriendRequest: vi.fn(),
-  listFriends: vi.fn(),
-  listIncomingFriendRequests: vi.fn(),
-  listOutgoingFriendRequests: vi.fn(),
-  removeFriend: vi.fn(),
-  sendFriendRequest: vi.fn(),
-}));
 vi.mock("@/lib/messages", () => ({
   cancelChatRequest: vi.fn(),
   respondToChatRequest: vi.fn(),
@@ -66,14 +55,13 @@ vi.mock("@/lib/session", () => ({
 }));
 vi.mock("@/lib/user-actions", () => ({
   blockUser: mockBlockUser,
-  followUser: mockFollowUser,
   getProfileRelation: mockGetProfileRelation,
+  muteUser: mockMuteUser,
   reportTarget: vi.fn(),
   unblockUser: mockUnblockUser,
-  unfollowUser: vi.fn(),
+  unmuteUser: vi.fn(),
 }));
 
-import { POST as friendsPost } from "@/app/api/friends/route";
 import { POST as chatRequestPost } from "@/app/api/messages/requests/[id]/route";
 import {
   POST as blockPost,
@@ -85,6 +73,15 @@ import { POST as userPost } from "@/app/api/users/[username]/route";
 function request(path: string) {
   return new NextRequest(`http://localhost${path}`, { method: "POST" });
 }
+
+const baseRelationship = {
+  blockState: "none",
+  muteState: "none",
+  canViewProfile: true,
+  canInteract: true,
+  canMessage: true,
+  isSelf: false,
+};
 
 describe("relationship API payload validation", () => {
   beforeEach(() => {
@@ -100,14 +97,6 @@ describe("relationship API payload validation", () => {
   });
 
   it.each([
-    ["friends null body", friendsPost, "/api/friends", null, undefined],
-    [
-      "friends object requestId",
-      friendsPost,
-      "/api/friends",
-      { action: "accept", requestId: {} },
-      undefined,
-    ],
     ["users array body", userPost, "/api/users/target", [], { params: Promise.resolve({ username: "target" }) }],
     [
       "users null reason",
@@ -140,18 +129,9 @@ describe("relationship API payload validation", () => {
   });
 
   it("returns the canonical relationship projection after a user action", async () => {
-    const relationship = {
-      followState: "following",
-      friendState: "none",
-      friendRequestId: null,
-      blockState: "none",
-      canViewProfile: true,
-      canInteract: true,
-      canMessage: true,
-      isSelf: false,
-    };
-    mockReadApiJson.mockResolvedValue({ action: "follow" });
-    mockFollowUser.mockResolvedValue({ followState: "following" });
+    const relationship = { ...baseRelationship, muteState: "muted" };
+    mockReadApiJson.mockResolvedValue({ action: "mute" });
+    mockMuteUser.mockResolvedValue({ muteState: "muted" });
     mockGetProfileRelation.mockResolvedValue(relationship);
 
     const response = await userPost(request("/api/users/target"), {
@@ -160,7 +140,7 @@ describe("relationship API payload validation", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      followState: "following",
+      muteState: "muted",
       relationship,
     });
     expect(mockGetProfileRelation).toHaveBeenCalledWith("viewer", "target");
@@ -168,14 +148,10 @@ describe("relationship API payload validation", () => {
 
   it("uses the ID block endpoint and returns the post-mutation projection", async () => {
     const relationship = {
-      followState: "none",
-      friendState: "none",
-      friendRequestId: null,
+      ...baseRelationship,
       blockState: "blocked_by_me",
-      canViewProfile: true,
       canInteract: false,
       canMessage: false,
-      isSelf: false,
     };
     mockBlockUser.mockResolvedValue({ blocked: true });
     mockGetProfileRelation.mockResolvedValue(relationship);
@@ -204,14 +180,10 @@ describe("relationship API payload validation", () => {
   it("resolves post authors to the canonical ID block endpoint", async () => {
     mockBlockUser.mockResolvedValue({ blocked: true });
     mockGetProfileRelation.mockResolvedValue({
-      followState: "none",
-      friendState: "none",
-      friendRequestId: null,
+      ...baseRelationship,
       blockState: "blocked_by_me",
-      canViewProfile: true,
       canInteract: false,
       canMessage: false,
-      isSelf: false,
     });
 
     const response = await blockAuthorPost(

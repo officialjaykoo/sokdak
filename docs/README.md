@@ -1,76 +1,38 @@
-# VTH Documentation
+# Sokdak documentation
 
-This directory contains the active product, architecture, data, testing, feature-contract, and operations documentation for Việt tại Hàn.
+Active documentation for **속닥속닥 (Sokdak)** — a small anonymous Korean community service running on Cloudflare Workers, D1, R2, and a single Durable Object for realtime DM delivery.
 
-## Primary canonical documents
+## Canonical documents
 
-These five documents are the first source of truth for future development and AI coding agents.
+1. [`PRODUCT.md`](PRODUCT.md) — what Sokdak is, who it serves, feature scope, and non-goals.
+2. [`ARCHITECTURE.md`](ARCHITECTURE.md) — runtime boundaries, state ownership, identity, security, and invariants.
+3. [`DATABASE.md`](DATABASE.md) — D1 schema overview, migration policy, and the baseline-squash layout.
+4. [`TESTING.md`](TESTING.md) — test layers, commands, and verification requirements.
+5. [`DEPLOYMENT.md`](DEPLOYMENT.md) — Cloudflare resources, secrets, deployment, and rollback.
 
-1. [`PRODUCT.md`](PRODUCT.md) — what VTH is, who it serves, core journeys, product principles, non-goals, and feature-priority rules.
-2. [`ROADMAP.md`](ROADMAP.md) — current phase, Bug12 quality convergence, Bug13 best-of-7 audit, Bug14 D1 consolidation, and later launch priorities.
-3. [`ARCHITECTURE.md`](ARCHITECTURE.md) — deployed runtime boundaries, canonical state ownership, identity, security, messaging, content, and convergence rules.
-4. [`VTH_DATABASE.md`](VTH_DATABASE.md) — canonical D1 ownership, counter invariants, migration policy, legacy objects, and consolidation strategy.
-5. [`VTH_TESTING.md`](VTH_TESTING.md) — lint/CI/test-layer responsibilities, DB integrity checks, critical browser journeys, and anti-flake policy.
+If a feature document conflicts with one of these, fix the conflict rather than maintaining two truths.
 
-If a feature-specific document conflicts with one of the primary five, update the conflict rather than maintaining two truths.
+## Historical documents
 
-## Supporting feature contracts
+- [`Phase0.md`](Phase0.md) — the original Phase 0 plan that scoped the Sokdak fork. Some decisions recorded there (boards, multiple OAuth providers) were narrowed during implementation; the code and the canonical documents above are authoritative for current behavior.
 
-- [`VTH_CONTENT_FEED.md`](VTH_CONTENT_FEED.md) — deeper public post/feed ranking, pagination, visibility, block-interaction and retry contract.
-- [`VTH_REALTIME_DM.md`](VTH_REALTIME_DM.md) — deeper direct-message request, persistence, realtime delivery, ordering, blocking, retry and recovery contract.
+## Operations
 
-These documents may be more implementation-specific than the primary five but remain active contracts.
-
-## Operations and dangerous procedures
-
-- [`CLOUDFLARE_VTH_KR_SETUP.md`](CLOUDFLARE_VTH_KR_SETUP.md) — production Cloudflare resources, configuration, migrations, deployment, smoke checks, backup and rollback.
-- [`USER_ID_REKEY_RUNBOOK.md`](USER_ID_REKEY_RUNBOOK.md) — dangerous user-ID rekey procedure. Do not execute without maintenance window, backup, dry-run and explicit production confirmation.
+- [`USER_ID_REKEY_RUNBOOK.md`](USER_ID_REKEY_RUNBOOK.md) — dangerous user-ID rekey procedure. Do not execute without a maintenance window, backup, dry run, and explicit production confirmation.
 - [`../SECURITY.md`](../SECURITY.md) — vulnerability reporting and security policy.
 
-## Documentation rules
+## Update discipline
 
-### Current truth vs implementation history
+Update documentation when a code change affects any of:
 
-```text
-PRODUCT / ROADMAP / ARCHITECTURE / VTH_DATABASE / VTH_TESTING
-= current canonical direction
+- product scope or non-goals
+- persistent data ownership or schema
+- identity, block, mute, or moderation semantics
+- feed behavior or feature flags (`site_settings`)
+- DM authority, recovery, or realtime behavior
+- quality and CI requirements
+- production deployment, secrets, or bindings
 
-feature contracts / runbooks
-= detailed current behavior or operation
+## Before a major change
 
-Git history / old bug instructions
-= implementation history
-```
-
-Do not turn canonical documents into Bug completion reports. Historical labels such as “Bug10 fixed X” or donor-comparison notes belong in Git history unless they are required to understand the current contract.
-
-### Update discipline
-
-A code change must update documentation when it changes any of the following:
-
-- product goal/non-goal
-- canonical implementation ownership
-- persistent data ownership/schema
-- identity/block/moderation semantics
-- feed/recommendation behavior
-- DM authority/recovery behavior
-- quality/CI requirements
-- production deployment/secret/binding requirements
-
-### External-project references
-
-RED, Clonagram, Discourse, Lemmy, Apache Answer, Bluesky, GoToSocial and other projects may be used as references or donor sources. Their architecture is not automatically VTH architecture. Adopted patterns must be absorbed into the canonical VTH contracts above.
-
-## Before a major development phase
-
-Before Bug13 or another broad architecture pass, read at minimum:
-
-```text
-PRODUCT.md
-ROADMAP.md
-ARCHITECTURE.md
-VTH_DATABASE.md
-VTH_TESTING.md
-```
-
-Then read the relevant feature contract/runbook for the domain being changed.
+Read at minimum `PRODUCT.md`, `ARCHITECTURE.md`, `DATABASE.md`, and `TESTING.md`, then the runbook for the operation being performed.

@@ -7,7 +7,9 @@ import {
   EllipsisIcon,
   EyeOffIcon,
   FlagIcon,
-  UserRoundIcon,
+  PinIcon,
+  PinOffIcon,
+  VolumeXIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -38,14 +40,23 @@ const REPORT_REASONS = [
 
 type PostOverflowMenuProps = {
   postId: string;
-  authorUsername: string;
+  /** Anonymous per-thread author tag shown in the block label. */
+  authorTag: string;
+  /** True when the post belongs to the viewer — hides block. */
+  isAuthor?: boolean;
+  /** Admin only — shows notice pin/unpin. */
+  canModerate?: boolean;
+  isNotice?: boolean;
   saved?: boolean;
   onDismiss?: () => void;
 };
 
 export function PostOverflowMenu({
   postId,
-  authorUsername,
+  authorTag,
+  isAuthor = false,
+  canModerate = false,
+  isNotice = false,
   saved = false,
   onDismiss,
 }: PostOverflowMenuProps) {
@@ -134,8 +145,54 @@ export function PostOverflowMenu({
         setError(localizeError(payload?.error, t("common.error")));
         return;
       }
-      setMessage(t("post.blockedUser", { username: authorUsername }));
-      onDismiss?.();
+      setMessage(t("post.blockedUser", { username: authorTag }));
+      router.refresh();
+    });
+  }
+
+  const [notice, setNotice] = useState(isNotice);
+
+  function toggleNotice() {
+    setError(null);
+    startTransition(async () => {
+      const res = await apiFetch(`/api/admin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          op: "post_notice",
+          postId,
+          notice: !notice,
+        }),
+      });
+      if (requireAuth(res.status)) return;
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setError(localizeError(payload?.error, t("common.error")));
+        return;
+      }
+      setNotice(!notice);
+      setMessage(notice ? t("post.noticeOff") : t("post.noticeOn"));
+      router.refresh();
+    });
+  }
+
+  function muteAuthor() {
+    setError(null);
+    startTransition(async () => {
+      const res = await apiFetch(`/api/posts/${postId}/mute-author`, {
+        method: "POST",
+      });
+      if (requireAuth(res.status)) return;
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setError(localizeError(payload?.error, t("common.error")));
+        return;
+      }
+      setMessage(t("post.mutedUser", { username: authorTag }));
       router.refresh();
     });
   }
@@ -215,25 +272,38 @@ export function PostOverflowMenu({
                 <FlagIcon />
                 {t("post.report")}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="min-h-11"
-                variant="destructive"
-                disabled={pending}
-                onClick={blockAuthor}
-              >
-                <BanIcon />
-                {t("post.blockUser", { username: authorUsername })}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="min-h-11"
-                render={
-                  <a href={`/u/${encodeURIComponent(authorUsername)}`} />
-                }
-              >
-                <UserRoundIcon />
-                {t("post.viewProfile")}
-              </DropdownMenuItem>
+              {canModerate ? (
+                <DropdownMenuItem
+                  className="min-h-11"
+                  disabled={pending}
+                  onClick={toggleNotice}
+                >
+                  {notice ? <PinOffIcon /> : <PinIcon />}
+                  {notice ? t("post.unpinNotice") : t("post.pinNotice")}
+                </DropdownMenuItem>
+              ) : null}
+              {!isAuthor ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="min-h-11"
+                    disabled={pending}
+                    onClick={muteAuthor}
+                  >
+                    <VolumeXIcon />
+                    {t("post.muteUser", { username: authorTag })}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="min-h-11"
+                    variant="destructive"
+                    disabled={pending}
+                    onClick={blockAuthor}
+                  >
+                    <BanIcon />
+                    {t("post.blockUser", { username: authorTag })}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
             </DropdownMenuGroup>
           ) : (
             <>

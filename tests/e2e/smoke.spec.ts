@@ -9,15 +9,14 @@ test.describe("cross-platform smoke", () => {
 
   test("home feed renders brand and posts region", async ({ page }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await dismissLanguagePrompt(page);
+    await dismissLanguagePrompt();
     await expect(
-      page.getByRole("heading", { name: "Việt tại Hàn", level: 1 })
+      page.getByRole("heading", { name: "속닥속닥", level: 1 })
     ).toBeVisible();
     await expect(page.getByRole("banner")).toBeVisible();
     await expect(page.getByTestId("feed-composer")).toBeVisible();
-    await expect(page.getByTestId("feed-shortcuts")).toBeVisible();
     await expect(
-      page.getByRole("link", { name: /đăng ký|đăng nhập|trang chủ/i }).first()
+      page.getByRole("link", { name: /로그인|홈/i }).first()
     ).toBeVisible();
   });
 
@@ -26,14 +25,14 @@ test.describe("cross-platform smoke", () => {
   }) => {
     for (const path of ["/login", "/signup"]) {
       await page.goto(path, { waitUntil: "domcontentloaded" });
-      await dismissLanguagePrompt(page);
+      await dismissLanguagePrompt();
       await expect(
-        page.getByRole("heading", { name: /tiếp tục với/i })
+        page.getByRole("heading", { name: /속닥속닥 계속하기/i })
       ).toBeVisible();
-      await expect(page.getByRole("button", { name: "Facebook" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Zalo" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Kakao" })).toBeVisible();
-      await expect(page.getByText(/không cần email hoặc mật khẩu/i)).toBeVisible();
+      await expect(
+        page.getByText(/이메일이나 비밀번호가 필요하지 않습니다/i)
+      ).toBeVisible();
       await expect(
         page.locator(
           'input:not([form="_red_trap"]):not([name="cf-turnstile-response"])'
@@ -49,7 +48,7 @@ test.describe("cross-platform smoke", () => {
     });
     await expect(page).toHaveURL(/\/login\?next=%2Fmessages$/);
     await expect(
-      page.getByRole("heading", { name: /tiếp tục với/i })
+      page.getByRole("heading", { name: /속닥속닥 계속하기/i })
     ).toBeVisible();
 
     await page.goto("/signup?next=https%3A%2F%2Fevil.example", {
@@ -66,19 +65,19 @@ test.describe("cross-platform smoke", () => {
     });
     await expect(page).toHaveURL(/\/login\?next=%2Fmessages$/);
     await expect(
-      page.getByRole("heading", { name: /tiếp tục với/i })
+      page.getByRole("heading", { name: /속닥속닥 계속하기/i })
     ).toBeVisible();
   });
   test("guest opens login with one click", async ({ page }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     const login = page.getByRole("banner").getByRole("link", {
-      name: /đăng nhập/i,
+      name: /로그인/i,
     });
     await expect(login).toBeVisible({ timeout: 30_000 });
     await login.click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(
-      page.getByRole("heading", { name: /tiếp tục với/i })
+      page.getByRole("heading", { name: /속닥속닥 계속하기/i })
     ).toBeVisible();
   });
 
@@ -106,14 +105,14 @@ test.describe("cross-platform smoke", () => {
     });
     await expect(page).toHaveURL(/\/login$/);
     await expect(
-      page.getByRole("heading", { name: /tiếp tục với/i })
+      page.getByRole("heading", { name: /속닥속닥 계속하기/i })
     ).toBeVisible();
   });
 
 
   test("layout does not overflow horizontally", async ({ page }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await dismissLanguagePrompt(page);
+    await dismissLanguagePrompt();
     const metrics = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,
@@ -125,7 +124,7 @@ test.describe("cross-platform smoke", () => {
   test("mobile chrome remains visible during scroll", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await dismissLanguagePrompt(page);
+    await dismissLanguagePrompt();
 
     const header = page.getByTestId("site-header");
     const mobileNav = page.getByTestId("mobile-nav");
@@ -149,20 +148,9 @@ test.describe("cross-platform smoke", () => {
     expect(after.navBottom).toBe(before.navBottom);
   });
 
-  test("developers header uses the public VTH logo asset", async ({ page }) => {
-    for (const path of ["/developers", "/developers/getting-started"]) {
-      await page.goto(path, { waitUntil: "domcontentloaded" });
-      const header = page.locator("header");
-      const logos = header.locator("img");
-      await expect(logos).toHaveCount(2);
-      await expect(logos.nth(0)).toHaveAttribute("src", /vth-logo\.png/);
-      await expect(logos.nth(1)).toHaveAttribute("src", /vth-logo\.png/);
-      await expect(header.locator('img[src*="icon.png"]')).toHaveCount(0);
-    }
-  });
   test("service worker endpoint registers in the browser", async ({ page }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await dismissLanguagePrompt(page);
+    await dismissLanguagePrompt();
     const response = await page.request.get("/sw.js");
     expect(response.ok()).toBe(true);
     expect(await response.text()).toContain("showNotification");
@@ -185,20 +173,11 @@ test.describe("cross-platform smoke", () => {
     expect(workerState?.state).toBe("activated");
   });
 
-
-  test("communities directory is reachable", async ({ page }) => {
-    await page.goto("/communities", { waitUntil: "domcontentloaded" });
-    await dismissLanguagePrompt(page);
-    await expect(
-      page.getByRole("heading", { name: /cộng đồng/i, level: 1 })
-    ).toBeVisible();
-  });
-
   test("post detail and profile routes resolve from feed links", async ({
     page,
   }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await dismissLanguagePrompt(page);
+    await dismissLanguagePrompt();
     const postLink = page.locator('a[href^="/post/"]').first();
     if ((await postLink.count()) === 0) {
       test.skip();
@@ -208,6 +187,6 @@ test.describe("cross-platform smoke", () => {
     expect(href).toBeTruthy();
     await page.goto(href!, { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/post\//);
-    await expect(page.getByRole("heading", { name: /bình luận/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /댓글/i })).toBeVisible();
   });
 });

@@ -17,8 +17,6 @@ const sourceOptions: Array<{ id: SourceFilter; label: string }> = [
   { id: "post", label: "Posts" },
   { id: "comment", label: "Comments" },
   { id: "user", label: "Users" },
-  { id: "listing", label: "Listings" },
-  { id: "business", label: "Businesses" },
   { id: "chat", label: "Chat" },
 ];
 
@@ -41,12 +39,6 @@ export function AdminReports({
         reportStatus: "reviewed",
         removeTarget,
       });
-    } else if (report.sourceType === "listing") {
-      run("review_listing_report", {
-        reportId: report.reportId,
-        reportStatus: "reviewed",
-        removeListing: removeTarget,
-      });
     } else if (report.chatReportType === "message") {
       run("review_chat_message_report", {
         reportId: report.reportId,
@@ -65,8 +57,6 @@ export function AdminReports({
     const payload = { reportId: report.reportId, reportStatus: "dismissed" };
     if (report.sourceType === "post" || report.sourceType === "comment" || report.sourceType === "user") {
       run("review_content_report", payload);
-    } else if (report.sourceType === "listing") {
-      run("review_listing_report", payload);
     } else if (report.chatReportType === "message") {
       run("review_chat_message_report", payload);
     } else {
@@ -121,7 +111,6 @@ export function AdminReports({
             const removable =
               report.sourceType === "post" ||
               report.sourceType === "comment" ||
-              report.sourceType === "listing" ||
               report.chatReportType === "message";
             return (
               <article key={`${report.sourceType}-${report.reportId}`} className="rounded-xl border border-border bg-card p-4">

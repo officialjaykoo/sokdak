@@ -14,7 +14,7 @@ self.addEventListener("push", (event) => {
     data = { body: event.data ? event.data.text() : "" };
   }
 
-  const title = data.title || "Việt tại Hàn";
+  const title = data.title || "속닥속닥";
   const options = {
     body: data.body || "",
     data: { href: data.href || "/notifications" },

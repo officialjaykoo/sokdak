@@ -4,20 +4,10 @@ import {
   listChatRoomReports,
   type ChatReportStatus,
 } from "@/lib/dm-moderation";
-import {
-  listListingReportQueue,
-  type ListingReportQueueItem,
-} from "@/lib/marketplace";
 import { getDb } from "@/lib/db";
 import { AuthError } from "@/lib/session";
 
-export type ReviewSourceType =
-  | "post"
-  | "comment"
-  | "user"
-  | "listing"
-  | "business"
-  | "chat";
+export type ReviewSourceType = "post" | "comment" | "user" | "chat";
 export type ReviewStatus = "pending" | "actioned" | "dismissed";
 
 export type ReviewQueueItem = {
@@ -55,21 +45,6 @@ function mapStatus(status: "open" | "reviewed" | "dismissed"): ReviewStatus {
   if (status === "open") return "pending";
   if (status === "reviewed") return "actioned";
   return "dismissed";
-}
-
-function mapListingReport(report: ListingReportQueueItem): ReviewQueueItem {
-  return {
-    sourceType: "listing",
-    reportId: report.id,
-    status: mapStatus(report.status),
-    reason: report.reason,
-    details: report.details,
-    createdAt: report.createdAt,
-    reporterUsername: report.reporterUsername,
-    targetSummary: report.listingTitle,
-    targetHref: `/marketplace/${report.listingId}`,
-    actionableId: report.listingId,
-  };
 }
 
 async function listContentReports(status: QueueStatus): Promise<ReviewQueueItem[]> {
@@ -163,22 +138,14 @@ export async function listReviewQueue(options: {
   const status = options.status ?? "pending";
   const source = options.source ?? "all";
   const include = (kind: ReviewSourceType) => source === "all" || source === kind;
-  const [content, listings, chat] = await Promise.all([
+  const [content, chat] = await Promise.all([
     include("post") || include("comment") || include("user")
       ? listContentReports(status)
-      : Promise.resolve([]),
-    include("listing")
-      ? Promise.all(
-          (status === "pending"
-            ? (["open"] as const)
-            : (["open", "reviewed", "dismissed"] as const)
-          ).map((reportStatus) => listListingReportQueue(reportStatus))
-        ).then((groups) => groups.flat().map(mapListingReport))
       : Promise.resolve([]),
     include("chat") ? listChatReports(status) : Promise.resolve([]),
   ]);
 
-  return [...content, ...listings, ...chat]
+  return [...content, ...chat]
     .filter((item) => source === "all" || item.sourceType === source)
     .sort((a, b) =>
       a.createdAt.localeCompare(b.createdAt) || a.reportId.localeCompare(b.reportId)

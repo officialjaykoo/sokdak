@@ -43,6 +43,11 @@ export async function getSiteSetting(key: string, fallback = ""): Promise<string
   return value;
 }
 
+/** DM code is retained but disabled by default via site_settings.dm_enabled. */
+export async function isDmEnabled(): Promise<boolean> {
+  return (await getSiteSetting("dm_enabled", "false")) === "true";
+}
+
 export async function setSiteSetting(
   key: string,
   value: string,

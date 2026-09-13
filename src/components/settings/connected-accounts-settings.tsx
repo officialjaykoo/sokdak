@@ -29,10 +29,8 @@ type AccountState = {
   accounts: LinkedAccount[];
 };
 
-const PROVIDER_LABELS: Record<OAuthProviderId, "settings.linkFacebook" | "settings.linkKakao" | "settings.linkZalo"> = {
-  facebook: "settings.linkFacebook",
+const PROVIDER_LABELS: Record<OAuthProviderId, "settings.linkKakao"> = {
   kakao: "settings.linkKakao",
-  zalo: "settings.linkZalo",
 };
 
 export function ConnectedAccountsSettings({
@@ -103,18 +101,11 @@ export function ConnectedAccountsSettings({
     startTransition(async () => {
       try {
         const callbackURL = "/settings?section=account";
-        const result =
-          provider === "zalo"
-            ? await authClient.oauth2.link({
-                providerId: "zalo",
-                callbackURL,
-                errorCallbackURL: callbackURL,
-              })
-            : await authClient.linkSocial({
-                provider,
-                callbackURL,
-                errorCallbackURL: callbackURL,
-              });
+        const result = await authClient.linkSocial({
+          provider,
+          callbackURL,
+          errorCallbackURL: callbackURL,
+        });
         if (result?.error) {
           throw new Error(result.error.message);
         }

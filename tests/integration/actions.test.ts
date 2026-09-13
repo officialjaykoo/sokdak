@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import {
   createComment,
   createPost,
-  createSubreddit,
   deleteOwnComment,
   deleteOwnPost,
   editComment,
@@ -17,11 +16,9 @@ import { getFeedPosts } from "@/lib/db";
 import { AuthError } from "@/lib/session";
 import {
   blockUser,
-  followUser,
   hidePost,
   reportTarget,
   unblockUser,
-  unfollowUser,
   unhidePost,
 } from "@/lib/user-actions";
 import {
@@ -30,24 +27,15 @@ import {
   unlikeComment,
   unlikePost,
 } from "@/lib/likes";
-import {
-  subscribeToSubreddit,
-  unsubscribeFromSubreddit,
-} from "@/lib/communities";
 
-import {
-  getCommentRow,
-  getPostRow,
-  seedUsersAndSubreddit,
-} from "./helpers";
+import { getCommentRow, getPostRow, seedUsers } from "./helpers";
 
 describe("content lifecycle (D1)", () => {
   it("creates, edits, and soft-deletes a post", async () => {
-    const { authorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId } = await seedUsers();
 
     const created = await createPost({
       userId: authorId,
-      subredditId,
       title: "Integration post title",
       body: "Body for the integration post",
     });
@@ -82,11 +70,10 @@ describe("content lifecycle (D1)", () => {
   });
 
   it("creates nested comments, edits, likes, and deletes them", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId } = await seedUsers();
 
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Comment thread post",
       body: "Root",
     });
@@ -138,11 +125,10 @@ describe("content lifecycle (D1)", () => {
   });
 
   it("assigns post likes idempotently", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId } = await seedUsers();
 
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Like target post",
       body: "Please like",
     });
@@ -162,18 +148,16 @@ describe("content lifecycle (D1)", () => {
     expect((await getPostRow(post.id))?.like_count).toBe(0);
   });
   it("returns the same rows for retried post and comment writes", async () => {
-    const { authorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId } = await seedUsers();
     const postRequestId = crypto.randomUUID();
     const firstPost = await createPost({
       userId: authorId,
-      subredditId,
       title: "  Retry-safe post  ",
       body: "  The same request must not create two posts.  ",
       requestId: postRequestId,
     });
     const retriedPost = await createPost({
       userId: authorId,
-      subredditId,
       title: "Retry-safe post",
       body: "The same request must not create two posts.",
       requestId: postRequestId,
@@ -182,7 +166,6 @@ describe("content lifecycle (D1)", () => {
     await expect(
       createPost({
         userId: authorId,
-        subredditId,
         title: "Different retry payload",
         body: "The same request must not create two posts.",
         requestId: postRequestId,
@@ -232,54 +215,16 @@ describe("content lifecycle (D1)", () => {
     expect(Number(commentCount?.count)).toBe(1);
   });
 });
-describe("community counter hardening", () => {
-  it("keeps subscriber_count derived from subscriptions", async () => {
-    const { actorId, subredditId } = await seedUsersAndSubreddit();
-
-    await expect(
-      subscribeToSubreddit(actorId, subredditId)
-    ).resolves.toMatchObject({
-      subscribed: true,
-      subscriberCount: 1,
-    });
-    await expect(
-      subscribeToSubreddit(actorId, subredditId)
-    ).resolves.toMatchObject({
-      subscribed: true,
-      subscriberCount: 1,
-    });
-    await expect(
-      unsubscribeFromSubreddit(actorId, subredditId)
-    ).resolves.toMatchObject({
-      subscribed: false,
-      subscriberCount: 0,
-    });
-
-    const row = await env.DB
-      .prepare(
-        `SELECT s.subscriber_count,
-                (SELECT COUNT(*) FROM subscriptions
-                 WHERE subreddit_id = s.id) AS actual_count
-         FROM subreddits s WHERE s.id = ?`
-      )
-      .bind(subredditId)
-      .first<{ subscriber_count: number; actual_count: number }>();
-    expect(row).toEqual({ subscriber_count: 0, actual_count: 0 });
-  });
-});
 describe("public feed hardening", () => {
   it("ranks popular posts by canonical engagement with a stable cursor", async () => {
-    const { authorId, actorId, adminId, subredditId } =
-      await seedUsersAndSubreddit();
+    const { authorId, actorId, adminId } = await seedUsers();
     const recentLow = await createPost({
       userId: authorId,
-      subredditId,
       title: "Recent low engagement post",
       body: "This post is newer but has no reactions.",
     });
     const popular = await createPost({
       userId: authorId,
-      subredditId,
       title: "Older popular post",
       body: "This post has canonical likes and a comment.",
     });
@@ -292,7 +237,6 @@ describe("public feed hardening", () => {
     });
 
     const first = await getFeedPosts({
-      mode: "popular",
       sort: "popular",
       limit: 1,
     });
@@ -300,7 +244,6 @@ describe("public feed hardening", () => {
     expect(first.nextCursor).toBeTruthy();
 
     const second = await getFeedPosts({
-      mode: "popular",
       sort: "popular",
       cursor: first.nextCursor,
       limit: 10,
@@ -310,17 +253,14 @@ describe("public feed hardening", () => {
   });
 
   it("uses the same moderation visibility for feed and post detail", async () => {
-    const { authorId, subredditId, subredditName } =
-      await seedUsersAndSubreddit();
+    const { authorId } = await seedUsers();
     const visible = await createPost({
       userId: authorId,
-      subredditId,
       title: "Visible public post",
       body: "This post should remain in the public feed.",
     });
     const shadow = await createPost({
       userId: authorId,
-      subredditId,
       title: "Shadow hidden public post",
       body: "This post is hidden by moderation.",
     });
@@ -331,9 +271,7 @@ describe("public feed hardening", () => {
       .run();
 
     const feed = await getFeedPosts({
-      subreddit: subredditName,
       sort: "new",
-      mode: "community",
       limit: 20,
     });
     expect(feed.posts.map((post) => post.id)).toContain(visible.id);
@@ -341,11 +279,9 @@ describe("public feed hardening", () => {
     expect(await getPostDetail(shadow.id)).toBeNull();
   });
   it("separates public reads from blocked positive interactions", async () => {
-    const { authorId, actorId, adminId, subredditId } =
-      await seedUsersAndSubreddit();
+    const { authorId, actorId, adminId } = await seedUsers();
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Public post remains readable after block",
       body: "Blocking changes interaction policy, not public visibility.",
     });
@@ -355,7 +291,6 @@ describe("public feed hardening", () => {
     expect(await getPostDetail(post.id, actorId)).toBeTruthy();
     const newPost = await createPost({
       userId: authorId,
-      subredditId,
       title: "A new post after the block",
       body: "A new positive interaction must be denied.",
     });
@@ -402,22 +337,17 @@ describe("public feed hardening", () => {
   });
 });
 
-
-
-describe("user actions (hide / block / follow / report)", () => {
+describe("user actions (hide / block / report)", () => {
   it("hides a post from the viewer feed", async () => {
-    const { authorId, actorId, subredditId, subredditName } =
-      await seedUsersAndSubreddit();
+    const { authorId, actorId } = await seedUsers();
 
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Hide me from feeds",
       body: "Secret",
     });
 
     const before = await getFeedPosts({
-      subreddit: subredditName,
       viewerUserId: actorId,
       sort: "new",
       limit: 10,
@@ -433,7 +363,6 @@ describe("user actions (hide / block / follow / report)", () => {
     expect(hidden).toBeTruthy();
 
     const after = await getFeedPosts({
-      subreddit: subredditName,
       viewerUserId: actorId,
       sort: "new",
       limit: 10,
@@ -442,7 +371,6 @@ describe("user actions (hide / block / follow / report)", () => {
 
     await unhidePost(actorId, post.id);
     const restored = await getFeedPosts({
-      subreddit: subredditName,
       viewerUserId: actorId,
       sort: "new",
       limit: 10,
@@ -451,23 +379,13 @@ describe("user actions (hide / block / follow / report)", () => {
   });
 
   it("blocks a user and filters their posts from the feed", async () => {
-    const { authorId, actorId, subredditId, subredditName } =
-      await seedUsersAndSubreddit();
+    const { authorId, actorId } = await seedUsers();
 
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Block author post",
       body: "Bye",
     });
-
-    await followUser(actorId, authorId);
-    let follow = await env.DB.prepare(
-      `SELECT 1 AS ok FROM user_follows WHERE follower_id = ? AND following_id = ?`
-    )
-      .bind(actorId, authorId)
-      .first();
-    expect(follow).toBeTruthy();
 
     await blockUser(actorId, authorId);
     const block = await env.DB.prepare(
@@ -477,16 +395,7 @@ describe("user actions (hide / block / follow / report)", () => {
       .first();
     expect(block).toBeTruthy();
 
-    // Block also removes the follow edge
-    follow = await env.DB.prepare(
-      `SELECT 1 AS ok FROM user_follows WHERE follower_id = ? AND following_id = ?`
-    )
-      .bind(actorId, authorId)
-      .first();
-    expect(follow).toBeFalsy();
-
     const feed = await getFeedPosts({
-      subreddit: subredditName,
       viewerUserId: actorId,
       sort: "new",
       limit: 10,
@@ -494,16 +403,19 @@ describe("user actions (hide / block / follow / report)", () => {
     expect(feed.posts.some((p) => p.id === post.id)).toBe(false);
 
     await unblockUser(actorId, authorId);
-    await followUser(actorId, authorId);
-    await unfollowUser(actorId, authorId);
+    const unblocked = await getFeedPosts({
+      viewerUserId: actorId,
+      sort: "new",
+      limit: 10,
+    });
+    expect(unblocked.posts.some((p) => p.id === post.id)).toBe(true);
   });
 
   it("reports a post once and rejects duplicates", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId } = await seedUsers();
 
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Reportable post",
       body: "Spammy",
     });
@@ -528,55 +440,13 @@ describe("user actions (hide / block / follow / report)", () => {
   });
 });
 
-describe("communities", () => {
-  it("creates a community, auto-subscribes, and makes creator a mod", async () => {
-    const { adminId } = await seedUsersAndSubreddit();
-    const name = `newc_${crypto.randomUUID().slice(0, 6)}`;
-
-    const created = await createSubreddit({
-      actor: { id: adminId, role: "admin", status: "active" },
-      name,
-      title: "Brand new community",
-      description: "Integration community",
-    });
-    expect(created.name).toBe(name);
-
-    const sub = await env.DB.prepare(
-      `SELECT 1 AS ok FROM subscriptions WHERE user_id = ? AND subreddit_id = ?`
-    )
-      .bind(adminId, created.id)
-      .first();
-    expect(sub).toBeTruthy();
-
-    const mod = await env.DB.prepare(
-      `SELECT 1 AS ok FROM subreddit_moderators WHERE user_id = ? AND subreddit_id = ?`
-    )
-      .bind(adminId, created.id)
-      .first();
-    expect(mod).toBeTruthy();
-  });
-
-  it("rejects community creation by normal users", async () => {
-    const { authorId } = await seedUsersAndSubreddit();
-
-    await expect(
-      createSubreddit({
-        actor: { id: authorId, role: "user", status: "active" },
-        name: `user_${crypto.randomUUID().slice(0, 6)}`,
-        title: "Should not be created",
-      })
-    ).rejects.toMatchObject({ status: 403 });
-  });
-});
-
 describe("validation edges", () => {
   it("rejects short titles and self-block", async () => {
-    const { authorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId } = await seedUsers();
 
     await expect(
       createPost({
         userId: authorId,
-        subredditId,
         title: "ab",
       })
     ).rejects.toBeInstanceOf(AuthError);
@@ -586,12 +456,11 @@ describe("validation edges", () => {
     );
   });
   it("rejects oversized post fields", async () => {
-    const { authorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId } = await seedUsers();
 
     await expect(
       createPost({
         userId: authorId,
-        subredditId,
         title: "Valid title",
         body: "x".repeat(20_001),
       })
@@ -600,14 +469,13 @@ describe("validation edges", () => {
     await expect(
       createPost({
         userId: authorId,
-        subredditId,
         title: "Valid title",
         url: `https://${"x".repeat(2_042)}`,
       })
     ).rejects.toMatchObject({ status: 400 });
   });
   it("requires an existing media object owned by the poster", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId } = await seedUsers();
     const source = jpeg.encode({
       width: 8,
       height: 8,
@@ -620,7 +488,6 @@ describe("validation edges", () => {
     await expect(
       createPost({
         userId: authorId,
-        subredditId,
         title: "Missing image",
         mediaKey: "media/missing-1.jpg",
       })
@@ -629,7 +496,6 @@ describe("validation edges", () => {
     await expect(
       createPost({
         userId: actorId,
-        subredditId,
         title: "Someone else's image",
         mediaKey: uploaded.mediaKey,
       })
@@ -637,7 +503,6 @@ describe("validation edges", () => {
 
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Owned image",
       mediaKey: uploaded.mediaKey,
     });
@@ -670,7 +535,6 @@ describe("validation edges", () => {
     ).rejects.toMatchObject({ status: 400 });
     const linkPost = await createPost({
       userId: authorId,
-      subredditId,
       title: "Owned link",
       url: "https://example.com/original",
     });

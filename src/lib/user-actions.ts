@@ -1,23 +1,15 @@
-import { notifyQuietly } from "@/lib/notifications";
-
-import { formatUserHandle, getUsernameProfileHref } from "@/lib/profile-url";
 import { runBackgroundTask } from "@/lib/background-task";
-import { scheduleChatPromotion } from "@/lib/chat-promotion";
 import { revokeChatRoom } from "@/lib/chat-realtime";
 import { getDb } from "@/lib/db";
-import { getFriendRelation, type FriendState } from "@/lib/friends";
 import { getDmRelationship } from "@/lib/dm-relationships";
 import { createPublicId } from "@/lib/id";
+import { isDmEnabled } from "@/lib/settings";
 import { refreshUnreadCounts } from "@/lib/unread";
 import { AuthError } from "@/lib/session";
 
-export type FollowState = "none" | "following";
 export type BlockState = "none" | "blocked_by_me" | "blocked_by_peer";
 
 export type RelationshipProjection = {
-  followState: FollowState;
-  friendState: FriendState;
-  friendRequestId: string | null;
   blockState: BlockState;
   muteState: "none" | "muted";
   canViewProfile: boolean;
@@ -88,19 +80,6 @@ export async function blockUser(blockerId: string, blockedId: string) {
          VALUES (?, ?)`
       )
       .bind(blockerId, blockedId),
-    db
-      .prepare(
-        `DELETE FROM user_follows
-         WHERE (follower_id = ? AND following_id = ?)
-            OR (follower_id = ? AND following_id = ?)`
-      )
-      .bind(blockerId, blockedId, blockedId, blockerId),
-    db
-      .prepare(
-        `DELETE FROM user_friendships
-         WHERE pair_key = ?`
-      )
-      .bind(pair),
     db
       .prepare(
         `UPDATE chat_requests
@@ -195,9 +174,6 @@ export async function blockUser(blockerId: string, blockedId: string) {
          SET is_read = 1
          WHERE is_read = 0
            AND kind IN (
-             'follow',
-             'friend_request',
-             'friend_accepted',
              'chat_request',
              'chat_accepted',
              'comment_on_post',
@@ -287,100 +263,6 @@ export async function unmuteUser(muterId: string, mutedId: string) {
   return { muteState: "none" as const };
 }
 
-export async function followUser(followerId: string, followingId: string) {
-  if (followerId === followingId) {
-    throw new AuthError("You can't follow yourself", 400);
-  }
-  const db = await getDb();
-  const user = await db
-    .prepare(`SELECT id, status FROM "user" WHERE id = ?`)
-    .bind(followingId)
-    .first<{ id: string; status: string }>();
-  if (!user || user.status === "banned") {
-    throw new AuthError("User not found", 404);
-  }
-
-  const blocked = await db
-    .prepare(
-      `SELECT 1 AS ok FROM user_blocks
-       WHERE (blocker_id = ? AND blocked_id = ?)
-          OR (blocker_id = ? AND blocked_id = ?)`
-    )
-    .bind(followerId, followingId, followingId, followerId)
-    .first();
-  if (blocked) {
-    throw new AuthError("Can't follow this user", 403);
-  }
-
-  const inserted = await db
-    .prepare(
-      `INSERT OR IGNORE INTO user_follows (follower_id, following_id)
-       SELECT ?, ?
-       WHERE NOT EXISTS (
-         SELECT 1 FROM user_blocks
-         WHERE (blocker_id = ? AND blocked_id = ?)
-            OR (blocker_id = ? AND blocked_id = ?)
-       )`
-    )
-    .bind(
-      followerId,
-      followingId,
-      followerId,
-      followingId,
-      followingId,
-      followerId
-    )
-    .run();
-  if (Number(inserted.meta.changes ?? 0) !== 1) {
-    const stillBlocked = await db
-      .prepare(
-        `SELECT 1 AS ok FROM user_blocks
-         WHERE (blocker_id = ? AND blocked_id = ?)
-            OR (blocker_id = ? AND blocked_id = ?)`
-      )
-      .bind(followerId, followingId, followingId, followerId)
-      .first();
-    if (stillBlocked) throw new AuthError("Can't follow this user", 403);
-    scheduleChatPromotion({
-      firstUserId: followerId,
-      secondUserId: followingId,
-      reason: "recipient_followed_sender",
-    });
-    return { followState: "following" as const };
-  }
-
-  scheduleChatPromotion({
-    firstUserId: followerId,
-    secondUserId: followingId,
-    reason: "recipient_followed_sender",
-  });
-
-  const actor = await db
-    .prepare(`SELECT username FROM "user" WHERE id = ?`)
-    .bind(followerId)
-    .first<{ username: string | null }>();
-  notifyQuietly({
-    userId: followingId,
-    actorId: followerId,
-    kind: "follow",
-    title: `${formatUserHandle(actor?.username)} followed you`,
-    href: getUsernameProfileHref(actor?.username),
-  });
-
-  return { followState: "following" as const };
-}
-
-export async function unfollowUser(followerId: string, followingId: string) {
-  const db = await getDb();
-  await db
-    .prepare(
-      `DELETE FROM user_follows WHERE follower_id = ? AND following_id = ?`
-    )
-    .bind(followerId, followingId)
-    .run();
-  return { followState: "none" as const };
-}
-
 export async function reportTarget(input: {
   reporterId: string;
   targetType: "post" | "comment" | "user";
@@ -455,12 +337,9 @@ export async function getProfileRelation(
   const isSelf = viewerId === profileUserId;
   if (!viewerId || isSelf) {
     return {
-      followState: "none",
-      friendState: "none",
-      friendRequestId: null,
       blockState: "none",
       muteState: "none",
-      // VTH has public profiles; block currently removes contact permission,
+      // Sokdak has public profiles; block currently removes contact permission,
       // not read access. Keep this policy explicit at the service boundary.
       canViewProfile: true,
       canInteract: false,
@@ -470,14 +349,7 @@ export async function getProfileRelation(
   }
 
   const db = await getDb();
-  const [follow, blocks, friend, dm, mute] = await Promise.all([
-    db
-      .prepare(
-        `SELECT 1 AS ok FROM user_follows
-         WHERE follower_id = ? AND following_id = ?`
-      )
-      .bind(viewerId, profileUserId)
-      .first(),
+  const [blocks, dm, mute, dmEnabled] = await Promise.all([
     db
       .prepare(
         `SELECT
@@ -492,7 +364,6 @@ export async function getProfileRelation(
       )
       .bind(viewerId, profileUserId, profileUserId, viewerId)
       .first<{ blocked_by_me: number; blocked_by_them: number }>(),
-    getFriendRelation(viewerId, profileUserId),
     getDmRelationship({ senderId: viewerId, recipientId: profileUserId }),
     db
       .prepare(
@@ -501,14 +372,12 @@ export async function getProfileRelation(
       )
       .bind(viewerId, profileUserId)
       .first(),
+    isDmEnabled(),
   ]);
   const blockedByMe = Boolean(blocks?.blocked_by_me);
   const blockedByThem = Boolean(blocks?.blocked_by_them);
   const blockedEitherDirection = blockedByMe || blockedByThem;
   return {
-    followState: follow ? "following" : "none",
-    friendState: friend.friendState,
-    friendRequestId: friend.requestId,
     blockState: blockedByMe
       ? "blocked_by_me"
       : blockedByThem
@@ -517,7 +386,7 @@ export async function getProfileRelation(
     muteState: mute ? "muted" : "none",
     canViewProfile: true,
     canInteract: !blockedEitherDirection,
-    canMessage: !blockedEitherDirection && dm.canMessage,
+    canMessage: !blockedEitherDirection && dm.canMessage && dmEnabled,
     isSelf: false,
   };
 }

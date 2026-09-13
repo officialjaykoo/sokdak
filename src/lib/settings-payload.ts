@@ -10,7 +10,6 @@ const PREFERENCE_KEYS = new Set([
   "preferredLanguage",
   "allowDms",
   "notifyComments",
-  "notifyFollows",
   "notifyChat",
   "notifyMentions",
 ]);
@@ -33,7 +32,6 @@ export type SettingsPatch =
       preferredLanguage?: Locale;
       allowDms?: "anyone" | "followers" | "nobody";
       notifyComments?: boolean;
-      notifyFollows?: boolean;
       notifyChat?: boolean;
       notifyMentions?: boolean;
     };
@@ -60,7 +58,6 @@ function isStringOrNull(value: unknown): value is string | null {
 
 const BOOLEAN_FIELDS = [
   "notifyComments",
-  "notifyFollows",
   "notifyChat",
   "notifyMentions",
 ] as const;

@@ -12,7 +12,6 @@ const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
 
 export type FeedSort = "new" | "popular";
-export type FeedMode = "home" | "popular" | "community";
 export const POPULAR_WINDOWS = ["day", "week", "month", "all"] as const;
 export type PopularWindow = (typeof POPULAR_WINDOWS)[number];
 export const DEFAULT_POPULAR_WINDOW: PopularWindow = "all";
@@ -63,11 +62,9 @@ type FeedQueryRow = PostProjectionRow & {
 export async function getFeedPosts(options: {
   limit?: number;
   cursor?: string | null;
-  subreddit?: string | null;
   authorId?: string | null;
   viewerUserId?: string | null;
   sort?: FeedSort;
-  mode?: FeedMode;
   window?: PopularWindow;
 }): Promise<OrganicFeedPage> {
   const db = await getDb();
@@ -75,18 +72,14 @@ export async function getFeedPosts(options: {
     Math.max(options.limit ?? DEFAULT_PAGE_SIZE, 1),
     MAX_PAGE_SIZE
   );
-  const mode = options.mode ?? (options.subreddit ? "community" : "popular");
-  const sort = options.sort ?? (mode === "popular" ? "popular" : "new");
+  const sort = options.sort ?? "new";
   const popularWindow = options.window ?? DEFAULT_POPULAR_WINDOW;
   const windowStart =
     sort === "popular" ? popularWindowStart(popularWindow) : null;
   const viewerUserId = options.viewerUserId ?? null;
-  const subreddit = options.subreddit ?? null;
   const authorId = options.authorId ?? null;
   const cursorContext = {
     sort,
-    mode,
-    subreddit,
     authorId,
     viewerId: viewerUserId,
     popularWindow: sort === "popular" ? popularWindow : null,
@@ -132,16 +125,6 @@ export async function getFeedPosts(options: {
     params.push(authorId);
   }
 
-  if (subreddit) {
-    where.push("s.name = ?");
-    params.push(subreddit);
-  } else if (mode === "home" && viewerUserId && !authorId) {
-    where.push(
-      "p.subreddit_id IN (SELECT subreddit_id FROM subscriptions WHERE user_id = ?)"
-    );
-    params.push(viewerUserId);
-  }
-
   if (sort === "popular" && windowStart) {
     where.push("p.created_at >= ?");
     params.push(windowStart);
@@ -172,32 +155,23 @@ export async function getFeedPosts(options: {
     .prepare(
       `SELECT
          p.id,
+         p.rowid AS num,
          p.title,
          p.body,
          p.url,
          p.media_key,
          p.like_count,
          p.comment_count,
+         p.views,
+         p.is_notice,
          ${engagementRank} AS engagement_rank,
          p.created_at,
-         p.source_lang,
-         p.translation_target_lang,
-         p.title_translated,
-         p.body_translated,
-         p.translation_status,
          u.id AS author_id,
-         u.username AS author_username,
-         u.name AS author_display_name,
-         u.image AS author_image,
          u.role AS author_role,
-         s.id AS subreddit_id,
-         s.name AS subreddit_name,
-         s.title AS subreddit_title,
          ${viewerLikeSelect},
          ${viewerSavedSelect}
        FROM posts p
        INNER JOIN "user" u ON u.id = p.author_id
-       INNER JOIN subreddits s ON s.id = p.subreddit_id
        WHERE ${where.join(" AND ")}
        ORDER BY ${
          sort === "popular" ? `${engagementRank} DESC,` : ""
@@ -233,3 +207,159 @@ export async function getFeedPosts(options: {
 }
 
 export { InvalidFeedCursorError };
+
+export interface BoardPage {
+  notices: FeedPostForBoard[];
+  posts: FeedPostForBoard[];
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+}
+
+type FeedPostForBoard = ReturnType<typeof mapPostProjection>;
+
+const NOTICE_LIMIT = 10;
+
+/**
+ * GNU-style offset pagination for the board list.
+ * Notices are pinned above the regular list on every page and are excluded
+ * from the regular list/count.
+ */
+export async function getBoardPosts(options: {
+  page?: number;
+  perPage?: number;
+  viewerUserId?: string | null;
+  sort?: FeedSort;
+  window?: PopularWindow;
+}): Promise<BoardPage> {
+  const db = await getDb();
+  const perPage = Math.min(
+    Math.max(options.perPage ?? DEFAULT_PAGE_SIZE, 1),
+    MAX_PAGE_SIZE
+  );
+  const sort = options.sort ?? "new";
+  const popularWindow = options.window ?? DEFAULT_POPULAR_WINDOW;
+  const windowStart =
+    sort === "popular" ? popularWindowStart(popularWindow) : null;
+  const viewerUserId = options.viewerUserId ?? null;
+  const engagementRank = "p.like_count + (p.comment_count * 3)";
+
+  const viewerLikeSelect = viewerUserId
+    ? `EXISTS (
+         SELECT 1 FROM post_likes pl
+         WHERE pl.post_id = p.id AND pl.user_id = ?
+       ) AS viewer_liked`
+    : "0 AS viewer_liked";
+  const viewerSavedSelect = viewerUserId
+    ? `EXISTS (
+         SELECT 1 FROM post_saves ps
+         WHERE ps.post_id = p.id AND ps.user_id = ?
+       ) AS viewer_saved`
+    : "0 AS viewer_saved";
+
+  const selectColumns = `
+         p.id,
+         p.rowid AS num,
+         p.title,
+         p.body,
+         p.url,
+         p.media_key,
+         p.like_count,
+         p.comment_count,
+         p.views,
+         p.is_notice,
+         p.created_at,
+         u.id AS author_id,
+         u.role AS author_role,
+         ${viewerLikeSelect},
+         ${viewerSavedSelect}`;
+
+  // Personal filters apply to both the notice pinboard and the list.
+  const personalWhere: string[] = [];
+  const personalParams: Array<string | number> = [];
+  if (viewerUserId) {
+    personalWhere.push(
+      "p.id NOT IN (SELECT post_id FROM hidden_posts WHERE user_id = ?)",
+      "p.author_id NOT IN (SELECT blocked_id FROM user_blocks WHERE blocker_id = ?)",
+      "p.author_id NOT IN (SELECT muted_id FROM user_mutes WHERE muter_id = ?)"
+    );
+    personalParams.push(viewerUserId, viewerUserId, viewerUserId);
+  }
+
+  const baseWhere: string[] = [publicPostVisibilitySql()];
+  if (sort === "popular" && windowStart) {
+    baseWhere.push("p.created_at >= ?");
+  }
+
+  // Notices stay pinned regardless of the popular-sort time window.
+  const noticesPromise = db
+    .prepare(
+      `SELECT ${selectColumns}
+       FROM posts p
+       INNER JOIN "user" u ON u.id = p.author_id
+       WHERE ${[publicPostVisibilitySql(), "p.is_notice = 1", ...personalWhere].join(" AND ")}
+       ORDER BY p.created_at DESC, p.id DESC
+       LIMIT ?`
+    )
+    .bind(
+      ...(viewerUserId ? [viewerUserId, viewerUserId] : []),
+      ...personalParams,
+      NOTICE_LIMIT
+    )
+    .all<PostProjectionRow>();
+
+  const countPromise = db
+    .prepare(
+      `SELECT COUNT(*) AS count
+       FROM posts p
+       WHERE ${[...baseWhere, "p.is_notice = 0", ...personalWhere].join(" AND ")}`
+    )
+    .bind(
+      ...(windowStart ? [windowStart] : []),
+      ...personalParams
+    )
+    .first<{ count: number }>();
+
+  const [noticesResult, countRow] = await Promise.all([
+    noticesPromise,
+    countPromise,
+  ]);
+
+  const total = Number(countRow?.count ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const page = Math.min(Math.max(options.page ?? 1, 1), totalPages);
+  const orderBy =
+    sort === "popular"
+      ? `${engagementRank} DESC, p.created_at DESC, p.id DESC`
+      : "p.created_at DESC, p.id DESC";
+
+  const { results } = await db
+    .prepare(
+      `SELECT ${selectColumns}
+       FROM posts p
+       INNER JOIN "user" u ON u.id = p.author_id
+       WHERE ${[...baseWhere, "p.is_notice = 0", ...personalWhere].join(" AND ")}
+       ORDER BY ${orderBy}
+       LIMIT ? OFFSET ?`
+    )
+    .bind(
+      ...(viewerUserId ? [viewerUserId, viewerUserId] : []),
+      ...(windowStart ? [windowStart] : []),
+      ...personalParams,
+      perPage,
+      (page - 1) * perPage
+    )
+    .all<PostProjectionRow>();
+
+  return {
+    notices: (noticesResult.results ?? []).map((row) =>
+      mapPostProjection(row, viewerUserId)
+    ),
+    posts: (results ?? []).map((row) => mapPostProjection(row, viewerUserId)),
+    page,
+    perPage,
+    total,
+    totalPages,
+  };
+}

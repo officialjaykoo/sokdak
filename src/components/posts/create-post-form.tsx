@@ -1,19 +1,15 @@
 "use client";
 
 import {
-  ChevronsUpDownIcon,
   FileTextIcon,
   ImageIcon,
   Link2Icon,
   Loader2Icon,
-  SearchIcon,
   XIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
-  useCallback,
   useEffect,
-  useId,
   useRef,
   useState,
   useSyncExternalStore,
@@ -44,18 +40,6 @@ import { apiFetch } from "@/lib/api-client";
 
 type PostType = "text" | "image" | "link";
 
-type CommunityOption = {
-  name: string;
-  title: string;
-  subscriberCount: number;
-};
-
-type Destination = {
-  kind: "community";
-  name: string;
-  title: string;
-};
-
 const POST_TYPES: {
   id: PostType;
   icon: typeof FileTextIcon;
@@ -72,7 +56,6 @@ type DraftFingerprint = {
 
 function createDraftFingerprint(input: {
   postType: PostType;
-  destination: Destination | null;
   title: string;
   body: string;
   url: string;
@@ -80,10 +63,6 @@ function createDraftFingerprint(input: {
 }): string {
   return JSON.stringify([
     input.postType,
-    input.destination?.kind ?? null,
-    input.destination?.kind === "community"
-      ? input.destination.name
-      : null,
     input.title,
     input.postType === "text" ? input.body : "",
     input.postType === "link" ? input.url : "",
@@ -101,10 +80,8 @@ function createDraftFingerprint(input: {
 const fieldRadius = "rounded-lg";
 
 export function CreatePostForm({
-  defaultSubreddit = "",
   defaultPostType = "text",
 }: {
-  defaultSubreddit?: string;
   defaultPostType?: PostType;
 }) {
   const router = useRouter();
@@ -112,7 +89,6 @@ export function CreatePostForm({
   const localizeError = useLocalizedError();
 
   const fileRef = useRef<HTMLInputElement>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef<string | null>(null);
   const mediaKeyRef = useRef<string | null>(null);
   const draftFingerprintRef = useRef<DraftFingerprint | null>(null);
@@ -120,18 +96,8 @@ export function CreatePostForm({
     value: "",
     imageFile: null,
   });
-  const listId = useId();
 
   const [postType, setPostType] = useState<PostType>(defaultPostType);
-  const [destination, setDestination] = useState<Destination | null>(
-    defaultSubreddit
-      ? { kind: "community", name: defaultSubreddit, title: defaultSubreddit }
-      : null
-  );
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [communityQuery, setCommunityQuery] = useState("");
-  const [communities, setCommunities] = useState<CommunityOption[]>([]);
-  const [loadingCommunities, setLoadingCommunities] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [url, setUrl] = useState("");
@@ -151,7 +117,6 @@ export function CreatePostForm({
 
   const currentDraftFingerprint = createDraftFingerprint({
     postType,
-    destination,
     title,
     body,
     url,
@@ -176,60 +141,7 @@ export function CreatePostForm({
       value: currentDraftFingerprint,
       imageFile,
     };
-  }, [
-    body,
-    currentDraftFingerprint,
-    destination,
-    imageFile,
-    postType,
-    title,
-    url,
-  ]);
-
-
-  const loadCommunities = useCallback(async (query: string) => {
-    setLoadingCommunities(true);
-    try {
-      const res = await apiFetch(
-        `/api/search?type=communities&q=${encodeURIComponent(query)}`
-      );
-      if (!res.ok) return;
-      const data = (await res.json()) as { communities?: CommunityOption[] };
-      setCommunities(data.communities ?? []);
-    } catch {
-      // Keep previous suggestions
-    } finally {
-      setLoadingCommunities(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!pickerOpen) return;
-    const handle = window.setTimeout(() => {
-      void loadCommunities(communityQuery);
-    }, 180);
-    return () => window.clearTimeout(handle);
-  }, [communityQuery, loadCommunities, pickerOpen]);
-
-  useEffect(() => {
-    function onPointerDown(event: MouseEvent) {
-      if (!pickerRef.current?.contains(event.target as Node)) {
-        setPickerOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, []);
-
-  function selectCommunity(community: CommunityOption) {
-    setDestination({
-      kind: "community",
-      name: community.name,
-      title: community.title,
-    });
-    setPickerOpen(false);
-    setCommunityQuery("");
-  }
+  }, [body, currentDraftFingerprint, imageFile, postType, title, url]);
 
   function resetTurnstile() {
     setTurnstileToken(null);
@@ -273,11 +185,6 @@ export function CreatePostForm({
     setError(null);
     bot.markTrusted(e);
 
-    if (!destination) {
-      setError(t("post.chooseDestinationError"));
-      setPickerOpen(true);
-      return;
-    }
     if (postType === "link" && !url.trim()) {
       setError(t("post.linkRequired"));
       return;
@@ -287,7 +194,6 @@ export function CreatePostForm({
       return;
     }
 
-    const destinationSnapshot = destination;
     const postTypeSnapshot = postType;
     const titleSnapshot = title;
     const bodySnapshot = body;
@@ -378,7 +284,6 @@ export function CreatePostForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
             bot.attachToPayload({
-              subreddit: destinationSnapshot.name,
               title: titleSnapshot,
               body:
                 postTypeSnapshot === "text"
@@ -437,146 +342,6 @@ export function CreatePostForm({
   return (
     <form onSubmit={submit} className="relative space-y-5" data-hydrated={hydrated}>
       <ParserTraps setTrapRef={bot.setTrapRef} />
-      {/* Destination */}
-      <div className="space-y-1.5" ref={pickerRef}>
-        <label id={`${listId}-label`} className="text-sm font-medium">
-          {t("post.community")}
-        </label>
-        <button
-          type="button"
-          aria-haspopup="listbox"
-          aria-expanded={pickerOpen}
-          aria-labelledby={`${listId}-label`}
-          onClick={() => {
-            setPickerOpen((open) => !open);
-            if (!pickerOpen) void loadCommunities(communityQuery);
-          }}
-          className={cn(
-            "flex h-11 w-full items-center gap-3 border border-input bg-background px-3 text-left transition-colors",
-            fieldRadius,
-            "hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
-          )}
-        >
-          {destination?.kind === "community" ? (
-            <>
-              <span
-                aria-hidden
-                className="grid size-7 shrink-0 place-items-center rounded-md bg-[color-mix(in_oklch,var(--brand)_18%,transparent)] text-xs font-bold text-[var(--brand)]"
-              >
-                c
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">
-                  {destination.name}
-                </span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {destination.title}
-                </span>
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="grid size-7 place-items-center rounded-md bg-muted text-muted-foreground">
-                <SearchIcon className="size-3.5" />
-              </span>
-              <span className="flex-1 text-sm text-muted-foreground">
-                {t("post.community")}
-              </span>
-            </>
-          )}
-          <ChevronsUpDownIcon
-            className="size-4 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
-        </button>
-
-        {pickerOpen ? (
-          <div
-            className={cn(
-              "z-20 overflow-hidden border border-border/70 bg-popover shadow-lg",
-              fieldRadius
-            )}
-          >
-            <div className="border-b border-border/50 p-2">
-              <div className="relative">
-                <SearchIcon
-                  className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden
-                />
-                <Input
-                  value={communityQuery}
-                  onChange={(e) => setCommunityQuery(e.target.value)}
-                  placeholder={t("search.communities")}
-                  autoFocus
-                  autoComplete="off"
-                  className={cn("h-9 pl-8", fieldRadius)}
-                />
-              </div>
-            </div>
-
-            <ul
-              id={listId}
-              role="listbox"
-              className="max-h-64 overflow-auto p-1"
-            >
-
-              <li className="px-2.5 pt-2 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-                {t("communities.title")}
-              </li>
-
-              {loadingCommunities && communities.length === 0 ? (
-                <li className="px-2.5 py-2 text-sm text-muted-foreground">
-                  {t("search.searching")}
-                </li>
-              ) : null}
-              {!loadingCommunities && communities.length === 0 ? (
-                <li className="px-2.5 py-2 text-sm text-muted-foreground">
-                  {t("pages.noCommunitiesMatched")}
-                </li>
-              ) : null}
-              {communities.map((community) => {
-                const selected =
-                  destination?.kind === "community" &&
-                  destination.name === community.name;
-                return (
-                  <li
-                    key={community.name}
-                    role="option"
-                    aria-selected={selected}
-                  >
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-muted",
-                        selected && "bg-muted"
-                      )}
-                      onClick={() => selectCommunity(community)}
-                    >
-                      <span
-                        aria-hidden
-                        className="grid size-8 shrink-0 place-items-center rounded-md bg-muted text-xs font-bold text-muted-foreground"
-                      >
-                        C
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">
-                          {community.name}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {community.title} ·{" "}
-                          {community.subscriberCount.toLocaleString()}{" "}
-                          {t("communities.members")}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ) : null}
-      </div>
-
       {/* Type tabs */}
       <div
         className={cn(

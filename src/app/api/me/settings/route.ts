@@ -64,7 +64,6 @@ export async function PATCH(request: NextRequest) {
       preferredLanguage: body.preferredLanguage,
       allowDms: body.allowDms,
       notifyComments: body.notifyComments,
-      notifyFollows: body.notifyFollows,
       notifyChat: body.notifyChat,
       notifyMentions: body.notifyMentions,
     });

@@ -21,7 +21,7 @@ export function AdminHeader({
           className="inline-flex items-center gap-2 rounded-md font-heading font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <ShieldCheck aria-hidden="true" className="size-5 text-primary" />
-          VTH Admin
+          속닥속닥 Admin
         </Link>
         <div className="flex items-center gap-1">
           <Link className="inline-flex h-8 items-center rounded-4xl px-3 text-sm font-medium hover:bg-muted" href="/">{viewSiteLabel}</Link>

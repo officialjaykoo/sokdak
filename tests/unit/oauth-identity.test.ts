@@ -16,31 +16,31 @@ describe("social OAuth identity email mapping", () => {
     });
 
     expect(mapped.email).toBe(
-      "kakao-123456789@oauth.viet-tai-han.invalid"
+      "kakao-123456789@oauth.sokdak.invalid"
     );
     expect(mapped.contactEmail).toBeUndefined();
     expect(mapped.emailVerified).toBe(false);
     expect(isSyntheticOAuthEmail(mapped.email)).toBe(true);
   });
 
-  it("allows Zalo accounts without email", () => {
+  it("allows Naver accounts without email", () => {
     const mapped = mapOAuthEmail({
-      providerId: "zalo",
-      accountId: "zalo-user-1",
+      providerId: "naver",
+      accountId: "naver-user-1",
       email: null,
     });
 
     expect(mapped.email).toBe(
-      "zalo-zalo-user-1@oauth.viet-tai-han.invalid"
+      "naver-naver-user-1@oauth.sokdak.invalid"
     );
     expect(mapped.contactEmail).toBeUndefined();
     expect(mapped.emailVerified).toBe(false);
   });
 
-  it("stores a real Facebook email as optional contact data", () => {
+  it("stores a real Google email as optional contact data", () => {
     const mapped = mapOAuthEmail({
-      providerId: "facebook",
-      accountId: "facebook-user-1",
+      providerId: "google",
+      accountId: "google-user-1",
       email: "  Person@Example.com ",
       emailVerified: true,
     });
@@ -56,7 +56,7 @@ describe("social OAuth identity email mapping", () => {
   it("keeps the provider account pair as a stable identity", () => {
     const first = createSyntheticOAuthEmail("kakao", "same-account");
     const second = createSyntheticOAuthEmail("kakao", "same-account");
-    const otherProvider = createSyntheticOAuthEmail("zalo", "same-account");
+    const otherProvider = createSyntheticOAuthEmail("naver", "same-account");
 
     expect(first).toBe(second);
     expect(otherProvider).not.toBe(first);
@@ -65,15 +65,15 @@ describe("social OAuth identity email mapping", () => {
   it("never exposes Better Auth compatibility fields publicly", () => {
     const safeUser = stripOAuthCompatibilityFields({
       id: "user-1",
-      email: createSyntheticOAuthEmail("zalo", "account-1"),
+      email: createSyntheticOAuthEmail("naver", "account-1"),
       onboardingUsernameCandidate: "provider_candidate",
       usernameChangedAt: "2026-01-01 00:00:00",
-      name: "Zalo User",
+      name: "Sokdak User",
     });
 
     expect(safeUser).toEqual({
       id: "user-1",
-      name: "Zalo User",
+      name: "Sokdak User",
     });
     expect("email" in safeUser).toBe(false);
     expect("onboardingUsernameCandidate" in safeUser).toBe(false);
@@ -83,7 +83,7 @@ describe("social OAuth identity email mapping", () => {
   it("stores provider profile names as onboarding username candidates", () => {
     expect(
       mapOAuthProfile({
-        providerId: "facebook",
+        providerId: "google",
         accountId: "provider-1",
         name: "Nguyễn User",
         providerUsername: "Provider_Handle",
@@ -96,13 +96,13 @@ describe("social OAuth identity email mapping", () => {
 
   it("falls back when a provider omits the profile name", () => {
     const mapped = mapOAuthProfile({
-      providerId: "zalo",
+      providerId: "naver",
       accountId: "provider-2",
     });
 
-    expect(mapped.name).toBe("VTH User");
+    expect(mapped.name).toBe("Sokdak User");
     expect(mapped.onboardingUsernameCandidate).toMatch(
-      /^vth_[a-f0-9]{12}$/
+      /^sokdak_[a-f0-9]{12}$/
     );
   });
 });

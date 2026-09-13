@@ -3,14 +3,12 @@ import { describe, expect, it } from "vitest";
 import { guardWorkerRequest } from "@/lib/worker-ingress";
 
 function request(pathname: string, init?: RequestInit) {
-  return new Request(`https://vth.kr${pathname}`, init);
+  return new Request(`https://sokdak.kr${pathname}`, init);
 }
 
 describe("Worker ingress OAuth callback handling", () => {
   it.each([
-    "/api/auth/callback/facebook?code=test",
     "/api/auth/callback/kakao?code=test",
-    "/api/auth/oauth2/callback/zalo?code=test",
   ])("allows browser callback %s without an API key", (pathname) => {
     const response = guardWorkerRequest(request(pathname, { method: "GET" }));
 
@@ -34,7 +32,7 @@ describe("Worker ingress OAuth callback handling", () => {
 
   it("requires an API key for non-GET OAuth callback requests", () => {
     const response = guardWorkerRequest(
-      request("/api/auth/callback/facebook", { method: "POST" })
+      request("/api/auth/callback/kakao", { method: "POST" })
     );
 
     expect(response?.status).toBe(401);

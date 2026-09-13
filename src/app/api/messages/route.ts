@@ -9,6 +9,7 @@ import {
   startConversation,
 } from "@/lib/messages";
 import { requireActiveUser } from "@/lib/permissions";
+import { isDmEnabled } from "@/lib/settings";
 import { AuthError, jsonAuthError, requireSession } from "@/lib/session";
 import { jsonLocalizedError } from "@/lib/public-error";
 import { requestIdFromHeaders } from "@/lib/idempotency";
@@ -42,6 +43,9 @@ export async function POST(request: NextRequest) {
       role?: string | null;
     };
     await requireActiveUser(user);
+    if (!(await isDmEnabled())) {
+      return await jsonLocalizedError("Direct messages are disabled", 403);
+    }
 
     const payload = await readApiJson(request);
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {

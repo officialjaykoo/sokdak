@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   BellIcon,
   BookmarkIcon,
-  CircleHelpIcon,
   CircleUserRoundIcon,
   FlameIcon,
   HomeIcon,
@@ -18,10 +17,6 @@ import {
   SearchIcon,
   SettingsIcon,
   ShieldIcon,
-  ShoppingBagIcon,
-  SparklesIcon,
-  StoreIcon,
-  UsersRoundIcon,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { buttonVariants } from "@/components/ui/button";
@@ -122,30 +117,6 @@ export function SiteHeader() {
 
   const primaryNav = [
     { href: "/", section: "home" as const, label: t("nav.home"), icon: HomeIcon },
-    {
-      href: "/communities",
-      section: "communities" as const,
-      label: t("nav.communities"),
-      icon: UsersRoundIcon,
-    },
-    {
-      href: "/questions",
-      section: "questions" as const,
-      label: t("nav.questions"),
-      icon: CircleHelpIcon,
-    },
-    {
-      href: "/marketplace",
-      section: "marketplace" as const,
-      label: t("nav.marketplace"),
-      icon: ShoppingBagIcon,
-    },
-    {
-      href: "/recommended",
-      section: "recommended" as const,
-      label: t("nav.forYou"),
-      icon: SparklesIcon,
-    },
   ] as const;
 
   return (
@@ -258,7 +229,7 @@ export function SiteHeader() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="min-h-11"
-                  render={<Link href="/?feed=popular" />}
+                  render={<Link href="/?sort=popular" />}
                 >
                   <FlameIcon />
                   {t("nav.popular")}
@@ -269,41 +240,6 @@ export function SiteHeader() {
                 >
                   <HomeIcon />
                   {t("nav.home")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="min-h-11"
-                  render={<Link href="/communities" />}
-                >
-                  <UsersRoundIcon />
-                  {t("nav.communities")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="min-h-11"
-                  render={<Link href="/questions" />}
-                >
-                  <CircleHelpIcon />
-                  {t("nav.questions")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="min-h-11"
-                  render={<Link href="/marketplace" />}
-                >
-                  <ShoppingBagIcon />
-                  {t("nav.marketplace")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="min-h-11"
-                  render={<Link href="/businesses" />}
-                >
-                  <StoreIcon />
-                  {t("nav.businesses")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="min-h-11"
-                  render={<Link href="/recommended" />}
-                >
-                  <SparklesIcon />
-                  {t("nav.forYou")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="min-h-11"
@@ -324,13 +260,6 @@ export function SiteHeader() {
                     >
                       <BookmarkIcon />
                       {t("nav.saved")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="min-h-11"
-                      render={<Link href="/friends" />}
-                    >
-                      <UsersRoundIcon />
-                      {t("nav.friends")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="min-h-11"

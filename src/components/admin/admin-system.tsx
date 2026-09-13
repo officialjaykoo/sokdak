@@ -106,16 +106,6 @@ export function AdminSystem({
     if (Object.keys(changed).length > 0) run("set_setting", { values: changed });
   }
 
-  function runMaintenance(op: "backfill_translations") {
-    if (
-      window.confirm(
-        "This operation may consume Worker, D1, or AI resources. Continue?"
-      )
-    ) {
-      run(op, { limit: 100 });
-    }
-  }
-
   return (
     <div className="space-y-8">
       <section>
@@ -133,7 +123,6 @@ export function AdminSystem({
       >
         {[
           ["#settings", "Settings"],
-          ["#maintenance", "Maintenance"],
           ["#activity", "Activity"],
         ].map(([href, label]) => (
           <a
@@ -214,23 +203,6 @@ export function AdminSystem({
               </div>
             </section>
           ))}
-        </div>
-      </section>
-      <section id="maintenance" className="space-y-3">
-        <div>
-          <h2 className="font-heading text-xl font-semibold">Maintenance</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            These operations may consume Worker, D1, or AI resources.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            disabled={pending}
-            onClick={() => runMaintenance("backfill_translations")}
-          >
-            {t("admin.backfillTranslations")}
-          </Button>
         </div>
       </section>
       <section id="activity" className="space-y-3">

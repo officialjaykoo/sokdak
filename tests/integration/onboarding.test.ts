@@ -75,7 +75,7 @@ describe("social-first onboarding", () => {
       userId: firstId,
       name: "First User",
       username: "taken_name",
-      preferredLanguage: "vi",
+      preferredLanguage: "ko",
     });
 
     await expect(
@@ -83,7 +83,7 @@ describe("social-first onboarding", () => {
         userId: secondId,
         name: "Second User",
         username: "taken_name",
-        preferredLanguage: "vi",
+        preferredLanguage: "ko",
       })
     ).rejects.toMatchObject({ status: 409 });
 
@@ -92,7 +92,7 @@ describe("social-first onboarding", () => {
         userId: secondId,
         name: "Second User",
         username: "bad-name",
-        preferredLanguage: "vi",
+        preferredLanguage: "ko",
       })
     ).rejects.toMatchObject({ status: 400 });
 
@@ -110,7 +110,7 @@ describe("social-first onboarding", () => {
         userId: secondId,
         name: "   ",
         username: "valid_name",
-        preferredLanguage: "vi",
+        preferredLanguage: "ko",
       })
     ).rejects.toMatchObject({ status: 400 });
   });

@@ -1,65 +1,54 @@
-# Việt tại Hàn
+# 속닥속닥 (Sokdak)
 
-Việt tại Hàn is a community and social platform for Vietnamese people living in Korea.
+속닥속닥 is a small anonymous community for Korean speakers — a single shared feed of independent posts, comments, and optional 1:1 messages.
 
-Production: [vth.kr](https://vth.kr)
-Developer host: [developers.vth.kr](https://developers.vth.kr)
+Production: [sokdak.kr](https://sokdak.kr)
+Developer host: [developers.sokdak.kr](https://developers.sokdak.kr)
 
-VTH started as a fork of the MIT-licensed [`koval01/red`](https://github.com/koval01/red) project and has been substantially reworked for its product model, identity, authentication, messaging, localization, and Cloudflare deployment. VTH is independent and is not affiliated with Meta, Facebook, Instagram, Kakao, Zalo, Reddit, or Cloudflare.
+Sokdak is a fork of [`koval01/red`](https://github.com/koval01/red) (MIT License), substantially reworked into this product: the broader VTH feature set — communities, Q&A, marketplace, businesses, follows/friends, achievements, monetization, and translation — was removed to keep a single anonymous community. Sokdak is independent and is not affiliated with Meta, Kakao, Reddit, or Cloudflare.
 
 ## Core product
 
-- Posts, comments, and likes
-- Communities
-- Questions and answers
-- Marketplace listings
-- Local businesses and services
-- Profiles
-- Follow, friends, and block relationships
-- 1:1 chat and message requests
+- Independent posts on a shared feed (latest / popular)
+- Nested comments and likes
+- Save, hide, report, block, mute
 - Notifications and browser push
-- Vietnamese/Korean multilingual UI
-
-## Design principles
-
-- **People-first identity:** `user.id` is immutable canonical identity; public usernames are mutable handles.
-- **Explicit privacy:** follow, friend, block, chat, and message-request rules are predictable and enforced server-side.
-- **Retry-safe social actions:** relationship, messaging, notification, and related transitions are idempotent and race-safe.
-- **Edge-first architecture:** the application is designed for Workers, D1, R2, Durable Objects, Turnstile, and related edge services.
-- **Multilingual by design:** Vietnamese and Korean are product requirements, not post-launch decoration.
+- Moderation and admin tooling
+- Media uploads
+- 1:1 messaging (code retained, gated by `site_settings.dm_enabled`)
+- Kakao social sign-in
+- Korean (default) and English UI
 
 ## Architecture
-
-VTH keeps canonical state in D1 and uses edge services for narrowly defined responsibilities:
 
 ```text
 Next.js UI
     |
-VTH Worker
+Sokdak Worker
     |
     +-- D1          canonical persistent state
     +-- R2          media
     +-- ChatRoom DO realtime DM delivery only
-    +-- Workers AI  translation only
+    +-- Web Push    optional notification delivery
 ```
 
-- D1 is the source of truth for users, content, relationships, notifications, and messages.
+- D1 is the source of truth for users, content, notifications, and messages.
 - R2 stores uploaded media; media metadata and authorization remain application state.
-- ChatRoom Durable Objects deliver realtime DM events only. They do not persist chat history.
-- Workers AI is used for translation only.
-- Browser application requests use `/i/api`.
-- Direct `/api/*` requests use the existing public API boundary: `Authorization: Bearer <api_key>` is required before route-specific authorization.
+- The ChatRoom Durable Object delivers realtime DM events only — it does not persist chat history.
+- Browser application requests use `/i/api`; direct `/api/*` requests use the public API bearer-key boundary.
+- Feature flags live in `site_settings` (`dm_enabled`, `registration_open`, rate quotas).
 
 ## Repository layout
 
 ```text
 src/app/          Next.js pages and API handlers
 src/components/   shared and feature UI
-src/lib/          application, identity, social, auth, security, and data logic
+src/lib/          application, identity, auth, security, and data logic
 src/worker.ts     Cloudflare Worker entry point
-migrations/       forward-only D1 schema migrations
+migrations/       D1 schema (0001 baseline + 0002 legacy cleanup)
 docs/             active architecture and operations documentation
 public/           static assets and service worker
+tests/            unit, workers, integration, and Playwright suites
 ```
 
 ## Local development
@@ -67,15 +56,15 @@ public/           static assets and service worker
 Requirements: Node.js 22+ and npm.
 
 ```bash
-git clone https://github.com/officialjaykoo/viet-tai-han.git
-cd viet-tai-han
+git clone https://github.com/officialjaykoo/sokdak.git
+cd sokdak
 npm ci
 cp .dev.vars.example .dev.vars
 npm run db:reset:local
 npm run dev
 ```
 
-Open `http://localhost:3000`. Social login requires the corresponding provider credentials in `.dev.vars`. Never copy production credentials or production resource identifiers into another deployment.
+Open `http://localhost:3000`. Kakao sign-in requires `KAKAO_CLIENT_ID` (and `KAKAO_CLIENT_SECRET` if enabled in the Kakao app) in `.dev.vars`. Never copy production credentials or resource identifiers into another deployment.
 
 ## Commands
 
@@ -89,31 +78,27 @@ npm run build:worker
 npm run preview
 ```
 
-- `npm run build` runs the Next.js application build.
-- `npm run build:worker` creates the production OpenNext Cloudflare Worker bundle.
-- `npm run preview` builds the Worker bundle and starts the Cloudflare preview.
-- `npm run test:e2e:chromium` runs the Chromium Playwright project.
-
-For local database work, use `npm run db:migrate:local`, `npm run db:seed:local`, or `npm run db:reset:local`. Deploy with `npm run deploy` only after reviewing the production runbook.
+For local database work use `npm run db:migrate:local`, `npm run db:seed:local`, or `npm run db:reset:local`. Deploy with `npm run deploy` only after reviewing [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Documentation
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — current runtime boundaries and invariants
-- [`docs/CLOUDFLARE_VTH_KR_SETUP.md`](docs/CLOUDFLARE_VTH_KR_SETUP.md) — production resources, deployment, smoke checks, and rollback
-- [`docs/VTH_REALTIME_DM.md`](docs/VTH_REALTIME_DM.md) — DM request, persistence, delivery, and retry rules
-- [`docs/USER_ID_REKEY_RUNBOOK.md`](docs/USER_ID_REKEY_RUNBOOK.md) — dangerous one-off user ID maintenance
-- [`docs/README.md`](docs/README.md) — active documentation index
+- [`docs/PRODUCT.md`](docs/PRODUCT.md) — feature scope and product rules
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — runtime boundaries and invariants
+- [`docs/DATABASE.md`](docs/DATABASE.md) — schema and migration policy
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — resources, secrets, deploy, rollback
+- [`docs/TESTING.md`](docs/TESTING.md) — test layers and requirements
+- [`docs/README.md`](docs/README.md) — documentation index
 - [`SECURITY.md`](SECURITY.md) — security policy and reporting
 
 ## Security and contribution
 
-Never commit secrets. Production secrets belong in Cloudflare Worker secrets or another approved secret store; see [`SECURITY.md`](SECURITY.md).
+Never commit secrets. Production secrets belong in Cloudflare Worker secrets; see [`SECURITY.md`](SECURITY.md).
 
-Prefer small, focused changes. Social behavior changes must cover complete state transitions, including block/privacy rules, retries, and concurrent requests. Security issues must not be posted publicly.
+Prefer small, focused changes. Changes to identity, block/mute, messaging, or moderation must cover complete state transitions, including retries and concurrent requests.
 
 ## Fork and attribution
 
-This repository is a fork of [`koval01/red`](https://github.com/koval01/red), originally released under the MIT License. VTH retains the applicable upstream MIT copyright notice while adding its own modifications and documentation.
+This repository is a fork of [`koval01/red`](https://github.com/koval01/red), originally released under the MIT License. The applicable upstream MIT copyright notice is retained alongside Sokdak's own modifications and documentation.
 
 ## License
 

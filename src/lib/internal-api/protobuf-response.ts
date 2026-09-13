@@ -28,7 +28,7 @@ const API_GUARD_COOKIES = [
 export type WrapOptions = {
   /** ATK used to seal the response payload (hides JSON on the wire). */
   sealAtk?: string | null;
-  /** Expire VTH's ephemeral API guard after a successful logout. */
+  /** Expire Sokdak's ephemeral API guard after a successful logout. */
   expireApiGuardCookies?: boolean;
   /** Match the challenge cookie's Secure attribute. */
   secure?: boolean;

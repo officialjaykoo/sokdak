@@ -4,11 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  CircleHelpIcon,
+  FlameIcon,
   HomeIcon,
   MessageSquareIcon,
   UserRoundIcon,
-  UsersRoundIcon,
 } from "lucide-react";
 
 import { useI18n } from "@/components/i18n/i18n-provider";
@@ -63,16 +62,10 @@ export function MobileNav() {
   const items = [
     { href: "/", section: "home" as const, label: t("nav.home"), icon: HomeIcon },
     {
-      href: "/communities",
-      section: "communities" as const,
-      label: t("nav.communities"),
-      icon: UsersRoundIcon,
-    },
-    {
-      href: "/questions",
-      section: "questions" as const,
-      label: t("nav.questions"),
-      icon: CircleHelpIcon,
+      href: "/?sort=popular",
+      section: "home" as const,
+      label: t("nav.popular"),
+      icon: FlameIcon,
     },
     ...(signedIn
       ? [

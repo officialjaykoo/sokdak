@@ -5,59 +5,59 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/components/i18n/i18n-provider";
 import { cn } from "@/lib/utils";
 
-export function FeedModeTabs({
+type FeedSortTab = "new" | "popular";
+
+export function FeedSortTabs({
   current,
-  signedIn,
   popularWindow = "all",
 }: {
-  current: "home" | "popular";
-  signedIn: boolean;
+  current: FeedSortTab;
   popularWindow?: "day" | "week" | "month" | "all";
 }) {
   const { t } = useI18n();
   const router = useRouter();
 
   function hrefFor(
-    mode: "home" | "popular",
+    sort: FeedSortTab,
     window: "day" | "week" | "month" | "all" = popularWindow
   ) {
-    if (mode === "home") return "/";
-    return window === "all" ? "/?feed=popular" : `/?feed=popular&window=${window}`;
+    if (sort === "new") return "/";
+    return window === "all"
+      ? "/?sort=popular"
+      : `/?sort=popular&window=${window}`;
   }
 
   return (
     <>
-      {signedIn ? (
-        <div
-          className="mb-1 flex gap-1 border-b border-border/70"
-          role="tablist"
-          aria-label={t("feed.modeLabel")}
-        >
-          {[
-            { id: "popular" as const, label: t("feed.popular") },
-            { id: "home" as const, label: t("nav.home") },
-          ].map((tab) => {
-            const active = current === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                className={cn(
-                  "relative inline-flex min-h-10 items-center rounded-t-lg border-b-2 border-transparent px-3 text-sm font-semibold transition-colors hover:bg-muted/70",
-                  active
-                    ? "border-[var(--brand)] text-[var(--brand)]"
-                    : "text-muted-foreground"
-                )}
-                onClick={() => router.push(hrefFor(tab.id))}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+      <div
+        className="mb-1 flex gap-1 border-b border-border/70"
+        role="tablist"
+        aria-label={t("feed.modeLabel")}
+      >
+        {[
+          { id: "new" as const, label: t("feed.new") },
+          { id: "popular" as const, label: t("feed.popular") },
+        ].map((tab) => {
+          const active = current === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              className={cn(
+                "relative inline-flex min-h-10 items-center rounded-t-lg border-b-2 border-transparent px-3 text-sm font-semibold transition-colors hover:bg-muted/70",
+                active
+                  ? "border-[var(--brand)] text-[var(--brand)]"
+                  : "text-muted-foreground"
+              )}
+              onClick={() => router.push(hrefFor(tab.id))}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
       {current === "popular" ? (
         <div
           className="mb-3 flex flex-wrap gap-1.5"
@@ -92,4 +92,3 @@ export function FeedModeTabs({
     </>
   );
 }
-

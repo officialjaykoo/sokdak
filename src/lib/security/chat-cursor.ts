@@ -75,7 +75,7 @@ async function cursorSecret(): Promise<Uint8Array> {
   const env = await getEnv();
   const secret =
     env.BETTER_AUTH_SECRET || "dev-secret-must-be-at-least-32-chars!!";
-  return new TextEncoder().encode(`vth-chat-cursor-v1:${secret}`);
+  return new TextEncoder().encode(`sokdak-chat-cursor-v1:${secret}`);
 }
 
 function encodePayload(payload: SealedChatCursor): string {

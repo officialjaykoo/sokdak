@@ -1,7 +1,6 @@
 import { APIError, betterAuth } from "better-auth";
 import { setSessionCookie } from "better-auth/cookies";
 import { createAuthEndpoint } from "@better-auth/core/api";
-import { genericOAuth } from "better-auth/plugins";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { Kysely } from "kysely";
 import { D1Dialect } from "kysely-d1";
@@ -26,27 +25,10 @@ export type AppUserStatus = "active" | "banned" | "shadowbanned";
 type AuthEnv = {
   BETTER_AUTH_SECRET?: string;
   BETTER_AUTH_URL?: string;
-  VTH_AUTH_ORIGINS?: string;
-  FACEBOOK_CLIENT_ID?: string;
-  FACEBOOK_CLIENT_SECRET?: string;
-  ZALO_APP_ID?: string;
-  ZALO_APP_SECRET?: string;
+  SOKDAK_AUTH_ORIGINS?: string;
   KAKAO_CLIENT_ID?: string;
   KAKAO_CLIENT_SECRET?: string;
   RATE_LIMIT_ENABLED?: boolean;
-};
-
-type ZaloTokenResponse = {
-  access_token?: string;
-  refresh_token?: string;
-  expires_in?: number | string;
-};
-
-type ZaloProfile = {
-  id?: string;
-  name?: string;
-  username?: string;
-  picture?: { data?: { url?: string } };
 };
 
 function configuredOrigins(baseURL: string, extraOrigins?: string): string[] {
@@ -60,103 +42,6 @@ function configuredOrigins(baseURL: string, extraOrigins?: string): string[] {
       []),
   ].filter((origin, index, origins) => origins.indexOf(origin) === index);
 }
-function zaloOAuthConfig(env: AuthEnv) {
-  if (!getOAuthProviderCapabilities(env).zalo) return [];
-  const clientId = env.ZALO_APP_ID!;
-  const clientSecret = env.ZALO_APP_SECRET!;
-
-  return [
-    {
-      providerId: "zalo",
-      clientId,
-      clientSecret,
-      authorizationUrl: "https://oauth.zaloapp.com/v4/permission",
-      tokenUrl: "https://oauth.zaloapp.com/v4/access_token",
-      pkce: true,
-      authorizationUrlParams: { app_id: clientId },
-      async getToken({
-        code,
-        codeVerifier,
-      }: {
-        code: string;
-        codeVerifier?: string;
-      }) {
-        if (!codeVerifier) {
-          throw new Error("Zalo OAuth requires a PKCE verifier");
-        }
-
-        const response = await fetch(
-          "https://oauth.zaloapp.com/v4/access_token",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              secret_key: clientSecret,
-            },
-            body: new URLSearchParams({
-              code,
-              app_id: env.ZALO_APP_ID!,
-              grant_type: "authorization_code",
-              code_verifier: codeVerifier,
-            }),
-          }
-        );
-        if (!response.ok) {
-          throw new Error(`Zalo token exchange failed (${response.status})`);
-        }
-
-        const payload = (await response.json()) as ZaloTokenResponse;
-        if (!payload.access_token) {
-          throw new Error("Zalo token response did not include an access token");
-        }
-
-        const expiresIn = Number(payload.expires_in);
-        return {
-          accessToken: payload.access_token,
-          refreshToken: payload.refresh_token,
-          accessTokenExpiresAt:
-            Number.isFinite(expiresIn) && expiresIn > 0
-              ? new Date(Date.now() + expiresIn * 1000)
-              : undefined,
-        };
-      },
-      async getUserInfo(tokens: { accessToken?: string }) {
-        if (!tokens.accessToken) return null;
-
-        const response = await fetch(
-          "https://graph.zalo.me/v2.0/me?fields=id,name,picture",
-          { headers: { access_token: tokens.accessToken } }
-        );
-        if (!response.ok) return null;
-
-        const profile = (await response.json()) as ZaloProfile;
-        if (!profile.id) return null;
-
-        const profileFields = mapOAuthProfile({
-          providerId: "zalo",
-          accountId: profile.id,
-          name: profile.name,
-          providerUsername: profile.username,
-        });
-        const emailFields = mapOAuthEmail({
-          providerId: "zalo",
-          accountId: profile.id,
-          email: null,
-        });
-
-        return {
-          id: profile.id,
-          ...profileFields,
-          ...emailFields,
-          image: normalizeOAuthAvatarImage(profile.picture?.data?.url) ?? undefined,
-        };
-      },
-    },
-  ];
-}
-
-
-
 function userFieldString(
   user: Record<string, unknown>,
   field: string
@@ -217,7 +102,6 @@ function createAuthFromDb(db: D1Database, env: AuthEnv) {
   });
   const baseURL = env.BETTER_AUTH_URL ?? "http://localhost:3000";
   const configuredProviders = getOAuthProviderCapabilities(env);
-  const facebookEnabled = configuredProviders.facebook;
   const kakaoEnabled = configuredProviders.kakao;
   const trustedProviders = OAUTH_PROVIDER_IDS.filter(
     (provider) => configuredProviders[provider]
@@ -237,40 +121,10 @@ function createAuthFromDb(db: D1Database, env: AuthEnv) {
     },
     secret: env.BETTER_AUTH_SECRET,
     baseURL,
-    trustedOrigins: configuredOrigins(baseURL, env.VTH_AUTH_ORIGINS),
+    trustedOrigins: configuredOrigins(baseURL, env.SOKDAK_AUTH_ORIGINS),
     // Logical path only — browser never hits /api/auth directly; POST /i/api tunnels it.
     basePath: "/api/auth",
     socialProviders: {
-      ...(facebookEnabled
-        ? {
-            facebook: {
-              clientId: env.FACEBOOK_CLIENT_ID!,
-              clientSecret: env.FACEBOOK_CLIENT_SECRET!,
-              scope: ["email", "public_profile"],
-              mapProfileToUser: (profile) => {
-                const facebookProfile = profile as typeof profile & {
-                  username?: string;
-                  handle?: string;
-                };
-                return {
-                  ...mapOAuthProfile({
-                    providerId: "facebook",
-                    accountId: String(profile.id),
-                    name: profile.name,
-                    providerUsername:
-                      facebookProfile.username ?? facebookProfile.handle,
-                  }),
-                  ...mapOAuthEmail({
-                    providerId: "facebook",
-                    accountId: String(profile.id),
-                    email: profile.email,
-                    emailVerified: profile.email_verified,
-                  }),
-                };
-              },
-            },
-          }
-        : {}),
       ...(kakaoEnabled
         ? {
             kakao: {
@@ -429,7 +283,6 @@ function createAuthFromDb(db: D1Database, env: AuthEnv) {
       },
     },
     plugins: [
-      genericOAuth({ config: zaloOAuthConfig(env) }),
       ...(process.env.E2E_BOT_BYPASS === "1" ? [e2eSessionPlugin()] : []),
     ],
     rateLimit: {
@@ -506,11 +359,7 @@ export async function getAuth(): Promise<Auth> {
     authSingleton = createAuthFromDb(env.DB, {
       BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
       BETTER_AUTH_URL: env.BETTER_AUTH_URL,
-      VTH_AUTH_ORIGINS: env.VTH_AUTH_ORIGINS,
-      FACEBOOK_CLIENT_ID: env.FACEBOOK_CLIENT_ID,
-      FACEBOOK_CLIENT_SECRET: env.FACEBOOK_CLIENT_SECRET,
-      ZALO_APP_ID: env.ZALO_APP_ID,
-      ZALO_APP_SECRET: env.ZALO_APP_SECRET,
+      SOKDAK_AUTH_ORIGINS: env.SOKDAK_AUTH_ORIGINS,
       KAKAO_CLIENT_ID: env.KAKAO_CLIENT_ID,
       KAKAO_CLIENT_SECRET: env.KAKAO_CLIENT_SECRET,
       RATE_LIMIT_ENABLED:
@@ -526,11 +375,7 @@ export function createAuth(db: D1Database, env: AuthEnv = {}) {
   return createAuthFromDb(db, {
     BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET ?? "dev-secret-must-be-at-least-32-chars!!",
     BETTER_AUTH_URL: env.BETTER_AUTH_URL ?? "http://localhost:3000",
-    VTH_AUTH_ORIGINS: env.VTH_AUTH_ORIGINS,
-    FACEBOOK_CLIENT_ID: env.FACEBOOK_CLIENT_ID,
-    FACEBOOK_CLIENT_SECRET: env.FACEBOOK_CLIENT_SECRET,
-    ZALO_APP_ID: env.ZALO_APP_ID,
-    ZALO_APP_SECRET: env.ZALO_APP_SECRET,
+    SOKDAK_AUTH_ORIGINS: env.SOKDAK_AUTH_ORIGINS,
     KAKAO_CLIENT_ID: env.KAKAO_CLIENT_ID,
     KAKAO_CLIENT_SECRET: env.KAKAO_CLIENT_SECRET,
     RATE_LIMIT_ENABLED: false,

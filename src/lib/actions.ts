@@ -1,11 +1,7 @@
 import { getDb } from "@/lib/db";
 import { createPublicId } from "@/lib/id";
 import { moderateText } from "@/lib/moderation";
-import {
-  bumpUserActivity,
-  enforceCreateRateLimit,
-} from "@/lib/rate-limit";
-import { requireAdmin, type SessionUser } from "@/lib/permissions";
+import { enforceCreateRateLimit } from "@/lib/rate-limit";
 import { AuthError } from "@/lib/session";
 import { normalizeRequestId } from "@/lib/idempotency";
 import { publicPostVisibilitySql } from "@/lib/content-visibility";
@@ -20,7 +16,6 @@ import { MAX_COMMENT_DEPTH } from "@/lib/comment-constants";
 
 type ExistingPostIdempotencyRow = {
   id: string;
-  subreddit_id: string;
   title: string;
   body: string | null;
   url: string | null;
@@ -58,7 +53,6 @@ function resolveExistingComment(
 function resolveExistingPost(
   existing: ExistingPostIdempotencyRow,
   input: {
-    subredditId: string;
     title: string;
     body: string | null;
     url: string | null;
@@ -66,7 +60,6 @@ function resolveExistingPost(
   }
 ) {
   if (
-    existing.subreddit_id !== input.subredditId ||
     existing.title !== input.title ||
     existing.body !== input.body ||
     existing.url !== input.url ||
@@ -83,7 +76,6 @@ function resolveExistingPost(
 export async function createPost(input: {
   userId: string;
   userStatus?: string | null;
-  subredditId: string;
   title: string;
   body?: string | null;
   url?: string | null;
@@ -164,14 +156,13 @@ export async function createPost(input: {
   if (requestId) {
     const existing = await db
       .prepare(
-        `SELECT id, subreddit_id, title, body, url, media_key
+        `SELECT id, title, body, url, media_key
          FROM posts WHERE author_id = ? AND request_id = ?`
       )
       .bind(input.userId, requestId)
       .first<ExistingPostIdempotencyRow>();
     if (existing) {
       return resolveExistingPost(existing, {
-        subredditId: input.subredditId,
         title,
         body,
         url,
@@ -180,21 +171,6 @@ export async function createPost(input: {
     }
   }
 
-  const subreddit = await db
-    .prepare(
-      `SELECT id, name, created_by, is_removed
-       FROM subreddits WHERE id = ?`
-    )
-    .bind(input.subredditId)
-    .first<{
-      id: string;
-      name: string;
-      created_by: string | null;
-      is_removed: number;
-    }>();
-  if (!subreddit || subreddit.is_removed) {
-    throw new AuthError("Community not found", 404);
-  }
   if (mediaKey) {
     const { assertOwnedMediaKey } = await import("@/lib/media");
     await assertOwnedMediaKey(mediaKey, input.userId);
@@ -215,13 +191,12 @@ export async function createPost(input: {
     await db
       .prepare(
         `INSERT INTO posts (
-           id, subreddit_id, author_id, title, body, url, media_key,
+           id, author_id, title, body, url, media_key,
            is_shadow_hidden, request_id
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         id,
-        input.subredditId,
         input.userId,
         title,
         body,
@@ -235,14 +210,13 @@ export async function createPost(input: {
     if (!requestId) throw error;
     const existing = await db
       .prepare(
-        `SELECT id, subreddit_id, title, body, url, media_key
+        `SELECT id, title, body, url, media_key
          FROM posts WHERE author_id = ? AND request_id = ?`
       )
       .bind(input.userId, requestId)
       .first<ExistingPostIdempotencyRow>();
     if (existing) {
       return resolveExistingPost(existing, {
-        subredditId: input.subredditId,
         title,
         body,
         url,
@@ -250,20 +224,6 @@ export async function createPost(input: {
       });
     }
     throw error;
-  }
-
-  try {
-    await bumpUserActivity(input.userId, input.subredditId, 3);
-  } catch (error) {
-    console.error("post_activity_update_failed", error);
-  }
-
-  if (!shadow) {
-    void import("@/lib/translation")
-      .then(({ schedulePostTranslation }) => schedulePostTranslation(id))
-      .catch((error) => {
-        console.error("post_translation_schedule_failed", error);
-      });
   }
 
   return { id };
@@ -319,16 +279,14 @@ export async function createComment(input: {
   await enforceCreateRateLimit(input.userId, "comment");
   const post = await db
     .prepare(
-      `SELECT p.id, p.subreddit_id, p.author_id, p.is_locked,
+      `SELECT p.id, p.author_id, p.is_locked,
               p.is_removed, p.is_shadow_hidden
        FROM posts p
-       INNER JOIN subreddits s ON s.id = p.subreddit_id
-       WHERE p.id = ? AND s.is_removed = 0`
+       WHERE p.id = ?`
     )
     .bind(input.postId)
     .first<{
       id: string;
-      subreddit_id: string;
       author_id: string;
       is_locked: number;
       is_removed: number;
@@ -379,12 +337,13 @@ export async function createComment(input: {
         .prepare(
           `INSERT INTO comments (
              id, post_id, author_id, parent_id, body, depth, is_shadow_hidden,
-             request_id
+             request_id, num
            )
-           SELECT ?, p.id, ?, parent.id, ?, parent.depth + 1, ?, ?
+           SELECT ?, p.id, ?, parent.id, ?, parent.depth + 1, ?, ?,
+                  (SELECT COALESCE(MAX(c2.num), 0) + 1
+                   FROM comments c2 WHERE c2.post_id = p.id)
            FROM posts p
            INNER JOIN comments parent ON parent.post_id = p.id
-           INNER JOIN subreddits s ON s.id = p.subreddit_id
            WHERE p.id = ?
              AND ${publicPostVisibilitySql()}
              AND p.is_locked = 0
@@ -418,11 +377,12 @@ export async function createComment(input: {
         .prepare(
           `INSERT INTO comments (
              id, post_id, author_id, parent_id, body, depth, is_shadow_hidden,
-             request_id
+             request_id, num
            )
-           SELECT ?, p.id, ?, NULL, ?, 0, ?, ?
+           SELECT ?, p.id, ?, NULL, ?, 0, ?, ?,
+                  (SELECT COALESCE(MAX(c2.num), 0) + 1
+                   FROM comments c2 WHERE c2.post_id = p.id)
            FROM posts p
-           INNER JOIN subreddits s ON s.id = p.subreddit_id
            WHERE p.id = ?
              AND ${publicPostVisibilitySql()}
              AND NOT EXISTS (
@@ -442,8 +402,7 @@ export async function createComment(input: {
           input.userId
         );
 
-  let results: D1Result<unknown>[];
-  try {
+  const runCommentInsert = () => {
     const statements = [insert];
     if (!shadow) {
       statements.push(
@@ -458,7 +417,19 @@ export async function createComment(input: {
           .bind(input.postId, id)
       );
     }
-    results = await db.batch(statements);
+    return db.batch(statements);
+  };
+
+  let results: D1Result<unknown>[];
+  try {
+    try {
+      results = await runCommentInsert();
+    } catch (firstError) {
+      // A concurrent insert can race on the per-post sequential num; the
+      // unique index rejects it — retry once so the subquery re-evaluates.
+      if (!String(firstError).includes("comments.num")) throw firstError;
+      results = await runCommentInsert();
+    }
   } catch (error) {
     if (!requestId) throw error;
     const existing = await db
@@ -511,36 +482,25 @@ export async function createComment(input: {
     throw new AuthError(parentId ? "Parent comment not found" : "Post not found", 404);
   }
 
-  await bumpUserActivity(input.userId, post.subreddit_id, 1);
-
   if (!shadow) {
-    void import("@/lib/translation").then(({ scheduleCommentTranslation }) =>
-      scheduleCommentTranslation(id)
-    );
-
     void (async () => {
       const { notifyQuietly } = await import("@/lib/notifications");
       const meta = await db
         .prepare(
           `SELECT p.author_id AS post_author_id, p.title,
-                  c.author_id AS parent_author_id,
-                  u.username AS actor_username
+                  c.author_id AS parent_author_id
            FROM posts p
            LEFT JOIN comments c ON c.id = ?
-           LEFT JOIN "user" u ON u.id = ?
            WHERE p.id = ?`
         )
-        .bind(input.parentId ?? null, input.userId, input.postId)
+        .bind(input.parentId ?? null, input.postId)
         .first<{
           post_author_id: string;
           title: string;
           parent_author_id: string | null;
-          actor_username: string | null;
         }>();
       if (!meta) return;
-      const actorLabel = meta.actor_username
-        ? `@${meta.actor_username}`
-        : "một người nào đó";
+      const actorLabel = "익명";
       const snippet = body.slice(0, 140);
       const href = `/post/${input.postId}`;
 
@@ -684,10 +644,6 @@ export async function deleteOwnComment(commentId: string, actorId: string) {
        SET is_deleted = 1,
            is_removed = 0,
            body = '[deleted]',
-           source_lang = NULL,
-           translation_target_lang = NULL,
-           body_translated = NULL,
-           translation_status = 'skipped',
            updated_at = datetime('now')
        WHERE id = ?
          AND author_id = ?
@@ -761,10 +717,6 @@ export async function removeCommentForModeration(
       `UPDATE comments
        SET is_removed = 1,
            body = CASE WHEN is_deleted = 1 THEN '[deleted]' ELSE '[removed]' END,
-           source_lang = NULL,
-           translation_target_lang = NULL,
-           body_translated = NULL,
-           translation_status = 'skipped',
            updated_at = datetime('now')
        WHERE id = ? AND is_removed = 0 AND is_deleted = 0`
     )
@@ -907,27 +859,12 @@ export async function editPost(input: {
     .prepare(
       `UPDATE posts
        SET title = ?, body = ?, url = ?,
-           source_lang = NULL,
-           translation_target_lang = NULL,
-           title_translated = NULL,
-           body_translated = NULL,
-           translation_status = 'pending',
            is_shadow_hidden = CASE WHEN ? THEN 1 ELSE is_shadow_hidden END,
            updated_at = datetime('now')
        WHERE id = ?`
     )
     .bind(title, body, url, moderation.shadow ? 1 : 0, input.postId)
     .run();
-
-  if (!moderation.shadow) {
-    void import("@/lib/translation")
-      .then(({ schedulePostTranslation }) =>
-        schedulePostTranslation(input.postId)
-      )
-      .catch((error) => {
-        console.error("post_translation_schedule_failed", error);
-      });
-  }
 
   return { id: input.postId, title, body, url };
 }
@@ -966,10 +903,6 @@ export async function editComment(input: {
     .prepare(
       `UPDATE comments
        SET body = ?,
-           source_lang = NULL,
-           translation_target_lang = NULL,
-           body_translated = NULL,
-           translation_status = 'pending',
            is_shadow_hidden = CASE WHEN ? THEN 1 ELSE is_shadow_hidden END,
            updated_at = datetime('now')
        WHERE id = ?`
@@ -977,74 +910,5 @@ export async function editComment(input: {
     .bind(body, moderation.shadow ? 1 : 0, input.commentId)
     .run();
 
-  if (!moderation.shadow) {
-    void import("@/lib/translation").then(({ scheduleCommentTranslation }) =>
-      scheduleCommentTranslation(input.commentId)
-    );
-  }
-
   return { id: input.commentId, body };
-}
-
-export async function createSubreddit(input: {
-  actor: SessionUser;
-  name: string;
-  title: string;
-  description?: string | null;
-}) {
-  await requireAdmin(input.actor);
-  const { slugifySubreddit } = await import("@/lib/permissions");
-  const name = slugifySubreddit(input.name);
-  if (name.length < 3) {
-    throw new AuthError("Community name must be at least 3 characters", 400);
-  }
-  const title = input.title.trim();
-  if (title.length < 3 || title.length > 100) {
-    throw new AuthError("Title must be 3–100 characters", 400);
-  }
-
-  const moderation = await moderateText(
-    `${name}\n${title}\n${input.description ?? ""}`
-  );
-  if (moderation.blocked) {
-    throw new AuthError("This content isn't allowed", 400);
-  }
-
-  const db = await getDb();
-  const existing = await db
-    .prepare(`SELECT id FROM subreddits WHERE name = ? COLLATE NOCASE`)
-    .bind(name)
-    .first();
-  if (existing) {
-    throw new AuthError("Community name already taken", 409);
-  }
-
-  const id = crypto.randomUUID();
-  await db
-    .prepare(
-      `INSERT INTO subreddits (id, name, title, description, created_by, subscriber_count)
-       VALUES (?, ?, ?, ?, ?, 0)`
-    )
-    .bind(id, name, title, input.description?.trim() || null, input.actor.id)
-    .run();
-
-  await db
-    .prepare(
-      `INSERT INTO subscriptions (user_id, subreddit_id) VALUES (?, ?)`
-    )
-    .bind(input.actor.id, id)
-    .run();
-
-  const { recountSubscribers } = await import("@/lib/communities");
-  await recountSubscribers(id);
-
-  await db
-    .prepare(
-      `INSERT INTO subreddit_moderators (subreddit_id, user_id) VALUES (?, ?)`
-    )
-    .bind(id, input.actor.id)
-    .run();
-
-
-  return { id, name };
 }

@@ -6,6 +6,7 @@ import { getChatMessages, sendChatMessage } from "@/lib/messages";
 import { CHAT_SLOW_REQUEST_MS, formatChatServerTiming } from "@/lib/chat-timing";
 
 import { requireActiveUser } from "@/lib/permissions";
+import { isDmEnabled } from "@/lib/settings";
 import { AuthError, jsonAuthError, requireSession } from "@/lib/session";
 import { jsonLocalizedError } from "@/lib/public-error";
 import { requestIdFromHeaders } from "@/lib/idempotency";
@@ -68,6 +69,9 @@ export async function POST(
       role?: string | null;
     };
     await requireActiveUser(user);
+    if (!(await isDmEnabled())) {
+      return await jsonLocalizedError("Direct messages are disabled", 403);
+    }
     const authMs = performance.now() - authStartedAt;
     const { roomId } = await context.params;
     const payload = await readApiJson(request);

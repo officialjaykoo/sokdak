@@ -11,12 +11,12 @@ import {
 } from "@/lib/messages";
 import { AuthError } from "@/lib/session";
 import { getUnreadCounts } from "@/lib/unread";
-import { seedUsersAndSubreddit } from "./helpers";
+import { seedUsers } from "./helpers";
 
 const SAME_MILLISECOND = "2026-08-14 12:00:00.000";
 
 async function createActiveRoom() {
-  const seeded = await seedUsersAndSubreddit();
+  const seeded = await seedUsers();
   const roomId = `room_reliability_${crypto.randomUUID().slice(0, 8)}`;
   await env.DB.batch([
     env.DB.prepare(
@@ -294,7 +294,7 @@ describe("chat reliability (D1)", () => {
   });
 
   it("makes repeated acceptance idempotent and conflicting actions fail", async () => {
-    const { authorId, actorId } = await seedUsersAndSubreddit();
+    const { authorId, actorId } = await seedUsers();
     const username = await env.DB
       .prepare(`SELECT username FROM "user" WHERE id = ?`)
       .bind(actorId)
@@ -331,7 +331,7 @@ describe("chat reliability (D1)", () => {
   });
 
   it("orders room and preview ties by the message identity tuple", async () => {
-    const { actorId, authorId, adminId } = await seedUsersAndSubreddit();
+    const { actorId, authorId, adminId } = await seedUsers();
     const roomA = `room_order_a_${crypto.randomUUID().slice(0, 8)}`;
     const roomZ = `room_order_z_${crypto.randomUUID().slice(0, 8)}`;
     await env.DB.batch([

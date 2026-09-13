@@ -11,21 +11,15 @@ function expectInvalidPayload(run: () => unknown) {
 
 describe("post payload parsing", () => {
   it("rejects non-string create fields before action code runs", () => {
+    expectInvalidPayload(() => parseCreatePostPayload({ title: {} }));
     expectInvalidPayload(() =>
-      parseCreatePostPayload({ subreddit: [], title: "Title" })
+      parseCreatePostPayload({ title: "Title", body: 42 })
     );
     expectInvalidPayload(() =>
-      parseCreatePostPayload({ subreddit: "general", title: {} })
-    );
-    expectInvalidPayload(() =>
-      parseCreatePostPayload({ subreddit: "general", title: "Title", body: 42 })
-    );
-    expectInvalidPayload(() =>
-      parseCreatePostPayload({ subreddit: "general", title: "Title", url: [] })
+      parseCreatePostPayload({ title: "Title", url: [] })
     );
     expectInvalidPayload(() =>
       parseCreatePostPayload({
-        subreddit: "general",
         title: "Title",
         mediaKey: [],
       })
@@ -35,14 +29,13 @@ describe("post payload parsing", () => {
   it("accepts nullable optional create fields", () => {
     expect(
       parseCreatePostPayload({
-        subreddit: "general",
         title: "Title",
         body: null,
         url: null,
         mediaKey: null,
         requestId: null,
       })
-    ).toMatchObject({ subreddit: "general", title: "Title" });
+    ).toMatchObject({ title: "Title" });
   });
 
   it("rejects malformed edit field types", () => {

@@ -225,7 +225,7 @@ export async function POST(request: NextRequest) {
       envelope.path === "/api/auth/sign-out" &&
       inner.ok;
     // Preserve Better Auth's Set-Cookie headers while retiring the separate
-    // VTH API security context on a successful logout.
+    // Sokdak API security context on a successful logout.
     return wrapAsProtobufResponse(inner, {
       sealAtk: atk,
       expireApiGuardCookies,

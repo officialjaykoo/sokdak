@@ -20,7 +20,7 @@ type ProfilePostPage = {
 type ProfileActivityProps = {
   username: string;
   tab: "posts" | "comments";
-  locale: "vi" | "ko" | "en";
+  locale: "ko" | "en";
   initialPosts?: ProfilePostPage;
   initialComments?: ProfileCommentPage;
   empty: string;
@@ -118,7 +118,7 @@ export function ProfileActivity({
     <div className="space-y-3">
       {tab === "posts"
         ? posts.map((post) => (
-            <PostCard key={post.id} post={post} discoverySource="profile" />
+            <PostCard key={post.id} post={post} />
           ))
         : comments.map((comment) => (
             <ProfileCommentCard

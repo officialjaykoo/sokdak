@@ -16,24 +16,13 @@ describe("profile activity pagination", () => {
   it("exposes comments beyond the first page with a signed cursor", async () => {
     const authorId = `profile_activity_${crypto.randomUUID()}`;
     const authorUsername = `profile_activity_${crypto.randomUUID().slice(0, 8)}`;
-    const subredditId = `profile_activity_sub_${crypto.randomUUID()}`;
     const postId = `profile_activity_post_${crypto.randomUUID()}`;
     await insertUser(authorId, authorUsername);
     await env.DB.prepare(
-      `INSERT INTO subreddits (id, name, title, created_by)
-       VALUES (?, ?, 'Profile activity pagination', ?)`
+      `INSERT INTO posts (id, author_id, title, body)
+       VALUES (?, ?, 'Profile activity post', 'body')`
     )
-      .bind(
-        subredditId,
-        `profile_activity_${crypto.randomUUID().slice(0, 8)}`,
-        authorId
-      )
-      .run();
-    await env.DB.prepare(
-      `INSERT INTO posts (id, subreddit_id, author_id, title, body)
-       VALUES (?, ?, ?, 'Profile activity post', 'body')`
-    )
-      .bind(postId, subredditId, authorId)
+      .bind(postId, authorId)
       .run();
 
     const expectedIds: string[] = [];

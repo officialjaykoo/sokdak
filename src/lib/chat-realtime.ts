@@ -24,12 +24,12 @@ export async function broadcastChatMessage(input: ChatRealtimeMessage) {
 
     const stub = chatRoom.get(chatRoom.idFromName(input.roomId));
     const response = await stub.fetch(
-      `https://vth-chat-room/broadcast?room=${encodeURIComponent(input.roomId)}`,
+      `https://sokdak-chat-room/broadcast?room=${encodeURIComponent(input.roomId)}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-VTH-Realtime-Token": env.BETTER_AUTH_SECRET,
+          "X-Sokdak-Realtime-Token": env.BETTER_AUTH_SECRET,
         },
         body: JSON.stringify(input),
       }
@@ -62,11 +62,11 @@ export async function revokeChatRoom(
 
     const stub = chatRoom.get(chatRoom.idFromName(roomId));
     const response = await stub.fetch(
-      `https://vth-chat-room/revoke?room=${encodeURIComponent(roomId)}&reason=${encodeURIComponent(reason)}`,
+      `https://sokdak-chat-room/revoke?room=${encodeURIComponent(roomId)}&reason=${encodeURIComponent(reason)}`,
       {
         method: "POST",
         headers: {
-          "X-VTH-Realtime-Token": env.BETTER_AUTH_SECRET,
+          "X-Sokdak-Realtime-Token": env.BETTER_AUTH_SECRET,
         },
       }
     );

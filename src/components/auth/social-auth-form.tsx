@@ -41,7 +41,7 @@ function SocialAuthForm() {
 
   function startIdentity(
     event: React.MouseEvent<HTMLButtonElement>,
-    provider: "facebook" | "zalo" | "kakao"
+    provider: "kakao"
   ) {
     event.preventDefault();
     setError(null);
@@ -55,27 +55,12 @@ function SocialAuthForm() {
       }
 
       const callbackURL = next;
-      const result =
-        provider === "facebook"
-          ? await authClient.signIn.social({
-              provider: "facebook",
-              callbackURL,
-              newUserCallbackURL: "/onboarding",
-              errorCallbackURL: "/login",
-            })
-          : provider === "kakao"
-            ? await authClient.signIn.social({
-                provider: "kakao",
-                callbackURL,
-                newUserCallbackURL: "/onboarding",
-                errorCallbackURL: "/login",
-              })
-            : await authClient.signIn.oauth2({
-                providerId: "zalo",
-                callbackURL,
-                newUserCallbackURL: "/onboarding",
-                errorCallbackURL: "/login",
-              });
+      const result = await authClient.signIn.social({
+        provider,
+        callbackURL,
+        newUserCallbackURL: "/onboarding",
+        errorCallbackURL: "/login",
+      });
 
       if (result.error) {
         setError(
@@ -111,8 +96,6 @@ function SocialAuthForm() {
         <CardFooter className="flex flex-col items-stretch gap-4 px-6 pb-7 sm:px-8">
           <IdentityAuthButtons
             pending={pending}
-            onFacebook={(event) => startIdentity(event, "facebook")}
-            onZalo={(event) => startIdentity(event, "zalo")}
             onKakao={(event) => startIdentity(event, "kakao")}
           />
           <p className="text-center text-xs leading-relaxed text-muted-foreground">

@@ -28,10 +28,7 @@ import { AuthError } from "@/lib/session";
 import type { ChatHistoryPage, ChatMessage } from "@/lib/types";
 import { incrementChatUnread } from "@/lib/unread";
 
-export type ChatPromotionReason =
-  | "request_accepted"
-  | "friendship"
-  | "recipient_followed_sender";
+export type ChatPromotionReason = "request_accepted";
 
 function isUniqueConstraint(error: unknown): boolean {
   return error instanceof Error && /unique|constraint/i.test(error.message);
@@ -321,14 +318,6 @@ function assertRelationshipCanMessage(
   ) {
     throw new AuthError("This user isn't accepting chat requests", 403);
   }
-}
-
-function promotionReasonForRelationship(
-  relationship: DmRelationship
-): ChatPromotionReason {
-  return relationship.friends
-    ? "friendship"
-    : "recipient_followed_sender";
 }
 
 async function notifyChatRequest(input: {
@@ -982,7 +971,7 @@ async function promotePendingRequestsForRoom(
   return promoted;
 }
 
-/** Promote pending requests when a follow/friend relationship becomes direct. */
+/** Promote pending requests for an established room pair. */
 export async function promotePendingChatRequestsForPair(
   firstUserId: string,
   secondUserId: string,
@@ -1455,7 +1444,7 @@ async function startDirectConversation(
     await promotePendingRequestsForRoom(
       context.db,
       roomId,
-      promotionReasonForRelationship(context.relationship)
+      "request_accepted"
     );
   }
 

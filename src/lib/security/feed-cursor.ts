@@ -1,4 +1,4 @@
-import type { FeedMode, FeedSort, PopularWindow } from "@/lib/db";
+import type { FeedSort, PopularWindow } from "@/lib/db";
 import {
   base64UrlToBytes,
   bytesToBase64Url,
@@ -18,8 +18,6 @@ export type FeedCursorPosition = {
 
 export type FeedCursorContext = {
   sort: FeedSort;
-  mode: FeedMode;
-  subreddit: string | null;
   authorId: string | null;
   viewerId: string | null;
   scope?: "posts" | "comments";
@@ -46,7 +44,7 @@ async function cursorSecret(): Promise<Uint8Array> {
   const env = await getEnv();
   const secret =
     env.BETTER_AUTH_SECRET || "dev-secret-must-be-at-least-32-chars!!";
-  return new TextEncoder().encode(`vth-feed-cursor-v1:${secret}`);
+  return new TextEncoder().encode(`sokdak-feed-cursor-v1:${secret}`);
 }
 
 function encodePayload(payload: SealedPayload): string {
@@ -69,7 +67,6 @@ function decodePayload(raw: string): SealedPayload | null {
       typeof parsed.createdAt !== "string" ||
       typeof parsed.id !== "string" ||
       typeof parsed.sort !== "string" ||
-      typeof parsed.mode !== "string" ||
       typeof parsed.iat !== "number" ||
       typeof parsed.exp !== "number"
     ) {
@@ -81,8 +78,6 @@ function decodePayload(raw: string): SealedPayload | null {
       createdAt: parsed.createdAt,
       id: parsed.id,
       sort: parsed.sort as FeedSort,
-      mode: parsed.mode as FeedMode,
-      subreddit: parsed.subreddit ?? null,
       authorId: parsed.authorId ?? null,
       viewerId: parsed.viewerId ?? null,
       scope: parsed.scope === "comments" ? "comments" : "posts",
@@ -121,8 +116,6 @@ export async function signFeedCursorWithSecret(
     createdAt: position.createdAt,
     id: position.id,
     sort: context.sort,
-    mode: context.mode,
-    subreddit: context.subreddit,
     authorId: context.authorId,
     viewerId: context.viewerId,
     scope: context.scope ?? "posts",
@@ -170,8 +163,6 @@ export async function openFeedCursorWithSecret(
   }
   if (
     payload.sort !== expect.sort ||
-    payload.mode !== expect.mode ||
-    !sameNullable(payload.subreddit, expect.subreddit) ||
     !sameNullable(payload.authorId, expect.authorId) ||
     !sameNullable(payload.viewerId, expect.viewerId) ||
     payload.scope !== (expect.scope ?? "posts") ||

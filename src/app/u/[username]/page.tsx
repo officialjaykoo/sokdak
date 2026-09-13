@@ -8,7 +8,6 @@ import { PageShell } from "@/components/layout/page-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SiteHeader } from "@/components/layout/site-header";
 import { ProfileCommentCard } from "@/components/user/profile-comment-card";
-import { ProfileFriends } from "@/components/user/profile-friends";
 import { ProfileHeader } from "@/components/user/profile-header";
 import { ProfileSidebar } from "@/components/user/profile-sidebar";
 import { ProfileActivity } from "@/components/user/profile-activity";
@@ -23,7 +22,6 @@ import {
   toPublicProfile,
   type ProfileComment,
 } from "@/lib/content";
-import { listFriends } from "@/lib/friends";
 import { getFeedPosts } from "@/lib/db";
 import { parseSqliteDate } from "@/lib/format-time";
 import { getRequestLocale } from "@/lib/i18n/server";
@@ -40,7 +38,7 @@ import {
 export const dynamic = "force-dynamic";
 
 function parseTab(value: string | undefined): ProfileTab {
-  if (value === "posts" || value === "comments" || value === "friends") {
+  if (value === "posts" || value === "comments") {
     return value;
   }
   return "overview";
@@ -73,22 +71,16 @@ function buildOverview(
   return items.slice(0, limit);
 }
 
-function serializeProfilePosts(
-  feed: OrganicFeedPage,
-  viewerUserId: string | null
-): {
+function serializeProfilePosts(feed: OrganicFeedPage): {
   posts: PublicFeedPost[];
   nextCursor: string | null;
   hasMore: boolean;
 } {
-  const serialized = serializeFeed(
-    {
-      posts: feed.posts.map((post) => ({ ...post, kind: "post" as const })),
-      nextCursor: feed.nextCursor,
-      hasMore: feed.hasMore,
-    },
-    viewerUserId
-  );
+  const serialized = serializeFeed({
+    posts: feed.posts.map((post) => ({ ...post, kind: "post" as const })),
+    nextCursor: feed.nextCursor,
+    hasMore: feed.hasMore,
+  });
   return {
     posts: serialized.posts.filter(
       (post): post is PublicFeedPost => post.kind === "post"
@@ -113,6 +105,7 @@ export default async function ProfilePage({
   const { tab: tabParam } = await searchParams;
   const tab = parseTab(tabParam);
 
+  const session = await getSession();
   const lookup = await resolvePublicProfile(identifier);
   logProfileStage("profile_lookup_done");
   if (!lookup || lookup.profile.status === "banned") notFound();
@@ -123,10 +116,13 @@ export default async function ProfilePage({
   const profileRecord = lookup.profile;
   const profile = toPublicProfile(profileRecord);
 
-  const session = await getSession();
   await redirectIfIncompleteOnboarding(session?.user?.id);
   const { locale } = await getRequestLocale();
   const isOwner = session?.user?.id === profileRecord.id;
+  const isAdmin = session?.user?.role === "admin";
+  // Anonymous board: profiles are private — only the owner and admins can
+  // view them.
+  if (!isOwner && !isAdmin) notFound();
   const relation = await getProfileRelation(session?.user?.id, profileRecord.id);
   if (!relation.canViewProfile) notFound();
 
@@ -141,15 +137,12 @@ export default async function ProfilePage({
     nextCursor: null,
     hasMore: false,
   };
-  let friends: Awaited<ReturnType<typeof listFriends>> = [];
-
   if (tab === "overview") {
     [postsFeed, commentsPage] = await Promise.all([
       getFeedPosts({
         authorId: profileRecord.id,
         limit: 30,
         sort: "new",
-        mode: "popular",
         viewerUserId,
       }),
       listUserCommentsPage(profileRecord.id, { limit: 30 }),
@@ -159,19 +152,16 @@ export default async function ProfilePage({
       authorId: profileRecord.id,
       limit: 30,
       sort: "new",
-      mode: "popular",
       viewerUserId,
     });
-  } else if (tab === "comments") {
-    commentsPage = await listUserCommentsPage(profileRecord.id, { limit: 30 });
   } else {
-    friends = await listFriends(profileRecord.id);
+    commentsPage = await listUserCommentsPage(profileRecord.id, { limit: 30 });
   }
   logProfileStage("profile_data_done");
   const posts = postsFeed.posts;
   const comments = commentsPage.comments;
   const initialProfilePosts =
-    tab === "posts" ? serializeProfilePosts(postsFeed, viewerUserId) : undefined;
+    tab === "posts" ? serializeProfilePosts(postsFeed) : undefined;
   const overview = buildOverview(posts, comments);
 
   return (
@@ -201,7 +191,6 @@ export default async function ProfilePage({
                       <PostCard
                         key={`p-${item.post.id}`}
                         post={item.post}
-                        discoverySource="profile"
                       />
                     ) : (
                       <ProfileCommentCard
@@ -233,13 +222,6 @@ export default async function ProfilePage({
                   locale={locale}
                   initialComments={commentsPage}
                   empty={tLocale(locale, "profile.emptyComments")}
-                />
-              ) : null}
-              {tab === "friends" ? (
-                <ProfileFriends
-                  friends={friends}
-                  heading={tLocale(locale, "profile.friends")}
-                  empty={tLocale(locale, "profile.emptyFriends")}
                 />
               ) : null}
             </div>

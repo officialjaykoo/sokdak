@@ -18,19 +18,6 @@ function optionalString(record: JsonObject, field: string): string | undefined {
   return value;
 }
 
-export function parseFriendActionPayload(value: unknown): {
-  action?: string;
-  requestId?: string;
-  userId?: string;
-} {
-  const record = asObject(value);
-  return {
-    action: optionalString(record, "action"),
-    requestId: optionalString(record, "requestId"),
-    userId: optionalString(record, "userId"),
-  };
-}
-
 export function parseUserActionPayload(value: unknown): {
   action?: string;
   reason?: string;

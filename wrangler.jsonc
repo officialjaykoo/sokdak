@@ -1,7 +1,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "vth",
-	"account_id": "8cbaf5bd93f2cfcf2a01bcae16cdf2d8",
+	"name": "sokdak",
+	"account_id": "22d65a8944c8f50915f993a079b4f302",
 	"main": "./src/worker.ts",
 	"compatibility_date": "2026-08-01",
 	"compatibility_flags": [
@@ -15,9 +15,8 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "vth-db",
-			// Production D1 database created for vth.kr.
-			"database_id": "f25b46db-a5c9-4f2c-a0da-77752fa02876",
+			"database_name": "sokdak-db",
+			"database_id": "ce42ca70-7e6a-48ff-b54e-cd44a6bde092",
 			"migrations_dir": "./migrations"
 		}
 	],
@@ -48,35 +47,21 @@
 	"r2_buckets": [
 		{
 			"binding": "MEDIA_BUCKET",
-			"bucket_name": "vth-media"
+			"bucket_name": "sokdak-media"
 		}
 	],
-	"ai": {
-		"binding": "AI"
-	},
 	"vars": {
-		"BETTER_AUTH_URL": "https://vth.kr",
-		"NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEoYhTGuKEC24mJc",
+		"BETTER_AUTH_URL": "https://sokdak.kr",
+		"NEXT_PUBLIC_TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
 		"NEXTJS_ENV": "production",
-		"FACEBOOK_CLIENT_ID": "1027160433660070",
 		"KAKAO_CLIENT_ID": "055c7ca94e809f9f322d85a8f23fcf99"
 	},
 	"triggers": {
 		"crons": ["0 3 * * *"]
 	},
 	"workers_dev": true,
-	"routes": [
-		{
-			"pattern": "vth.kr",
-			"custom_domain": true,
-			"zone_name": "vth.kr"
-		},
-		{
-			"pattern": "developers.vth.kr",
-			"custom_domain": true,
-			"zone_name": "vth.kr"
-		}
-	],
+	// Custom-domain routes are intentionally unset for now.
+	// Add the sokdak.kr route here when the domain is attached.
 	"observability": {
 		"enabled": true,
 		"head_sampling_rate": 1,

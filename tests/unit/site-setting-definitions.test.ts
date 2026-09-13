@@ -9,7 +9,7 @@ import {
 
 describe("site setting definitions", () => {
   it("covers every registered setting with an operational control", () => {
-    expect(SITE_SETTING_DEFINITIONS.length).toBeGreaterThan(20);
+    expect(SITE_SETTING_DEFINITIONS.length).toBeGreaterThanOrEqual(20);
     expect(
       SITE_SETTING_DEFINITIONS.every(
         (definition) => definition.label && definition.description && definition.defaultValue

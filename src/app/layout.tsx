@@ -9,7 +9,6 @@ import { AuthSessionHydrator } from "@/components/auth/auth-session-hydrator";
 import { I18nProvider } from "@/components/i18n/i18n-provider";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { OnlinePresenceBeacon } from "@/components/online/online-presence-beacon";
 import {
   ThemeProvider,
   themeInitScript,
@@ -24,7 +23,7 @@ import { cn } from "@/lib/utils";
 import "./globals.css";
 
 const manrope = Manrope({
-  subsets: ["latin", "vietnamese", "cyrillic"],
+  subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
 });
@@ -43,14 +42,14 @@ async function isDeveloperHost(): Promise<boolean> {
     .trim()
     .split(":")[0]
     .toLowerCase();
-  return host === "developers.vth.kr";
+  return host === "developers.sokdak.kr";
 }
 
 export async function generateMetadata(): Promise<Metadata> {
   if (await isDeveloperHost()) {
     return {
-      title: "VTH Developers",
-      description: "Developer guide for the VTH social and community platform.",
+      title: "Sokdak Developers",
+      description: "Developer guide for Sokdak.",
       icons: {
         icon: "/icon.png",
         shortcut: "/icon.png",
@@ -76,7 +75,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     appleWebApp: {
       capable: true,
-      title: "Việt tại Hàn",
+      title: "속닥속닥",
       statusBarStyle: "black-translucent",
     },
   };
@@ -168,7 +167,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               initialCookieLocale={cookieLocale}
             >
               {children}
-              {!isAdminPath ? <OnlinePresenceBeacon enabled={signedIn} /> : null}
               {!isAdminPath ? <MobileNav /> : null}
               {!isAdminPath ? <SiteFooter /> : null}
             </I18nProvider>

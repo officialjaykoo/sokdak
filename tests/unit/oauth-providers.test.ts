@@ -6,33 +6,20 @@ describe("OAuth provider capabilities", () => {
   it("exposes only provider readiness booleans", () => {
     expect(
       getOAuthProviderCapabilities({
-        FACEBOOK_CLIENT_ID: "facebook-id",
-        FACEBOOK_CLIENT_SECRET: "facebook-secret",
         KAKAO_CLIENT_ID: "kakao-id",
-        ZALO_APP_ID: "zalo-id",
-        ZALO_APP_SECRET: "zalo-secret",
       })
-    ).toEqual({ facebook: true, kakao: true, zalo: true });
+    ).toEqual({ kakao: true });
   });
 
-  it("does not mark partially configured providers as connectable", () => {
-    expect(
-      getOAuthProviderCapabilities({
-        FACEBOOK_CLIENT_ID: "facebook-id",
-        KAKAO_CLIENT_SECRET: "kakao-secret",
-        ZALO_APP_ID: "zalo-id",
-      })
-    ).toEqual({ facebook: false, kakao: false, zalo: false });
+  it("does not mark unconfigured providers as connectable", () => {
+    expect(getOAuthProviderCapabilities({})).toEqual({ kakao: false });
   });
+
   it("treats blank credentials as unconfigured", () => {
     expect(
       getOAuthProviderCapabilities({
-        FACEBOOK_CLIENT_ID: " ",
-        FACEBOOK_CLIENT_SECRET: "facebook-secret",
         KAKAO_CLIENT_ID: "\t",
-        ZALO_APP_ID: "zalo-id",
-        ZALO_APP_SECRET: " ",
       })
-    ).toEqual({ facebook: false, kakao: false, zalo: false });
+    ).toEqual({ kakao: false });
   });
 });

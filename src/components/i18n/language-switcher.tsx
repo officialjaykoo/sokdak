@@ -6,7 +6,6 @@ import type { MessageKey } from "@/lib/i18n/messages/en";
 import { cn } from "@/lib/utils";
 
 const LANGUAGE_LABEL_KEYS: Record<Locale, MessageKey> = {
-  vi: "language.vietnamese",
   ko: "language.korean",
   en: "language.english",
 };

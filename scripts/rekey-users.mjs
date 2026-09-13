@@ -16,13 +16,8 @@ const REJECTION_LIMIT = 248;
 const DEFAULT_MAPPING_PATH = ".tmp/user-id-rekey-map.json";
 const TABLES = [
   ["account", "userId"],
-  ["answers", "author_id"],
   ["api_keys", "user_id"],
   ["banned_words", "created_by"],
-  ["business_bookings", "requester_id"],
-  ["business_verification_requests", "requester_id"],
-  ["business_verification_requests", "reviewed_by"],
-  ["businesses", "owner_id"],
   ["chat_message_reports", "reporter_id"],
   ["chat_message_reports", "reviewed_by"],
   ["chat_messages", "sender_id"],
@@ -36,37 +31,24 @@ const TABLES = [
   ["comments", "author_id"],
   ["comment_likes", "user_id"],
   ["hidden_posts", "user_id"],
-  ["listing_reports", "reporter_id"],
-  ["listing_reports", "reviewed_by"],
-  ["listing_saves", "user_id"],
-  ["listings", "seller_id"],
+  ["media_objects", "uploaded_by"],
   ["moderation_actions", "actor_id"],
   ["moderation_actions", "target_user_id"],
   ["notifications", "user_id"],
   ["notifications", "actor_id"],
   ["posts", "author_id"],
   ["post_likes", "user_id"],
+  ["post_saves", "user_id"],
   ["push_subscriptions", "user_id"],
-  ["questions", "author_id"],
-  ["rate_limits", "user_id"],
   ["reports", "reporter_id"],
-  ["subreddit_moderators", "user_id"],
-  ["subreddits", "created_by"],
-  ["subscriptions", "user_id"],
   ["unread_fanout", "user_id"],
-  ["user_activity", "user_id"],
   ["user_blocks", "blocker_id"],
   ["user_blocks", "blocked_id"],
-  ["user_follows", "follower_id"],
-  ["user_follows", "following_id"],
-  ["user_friendships", "requester_id"],
-  ["user_friendships", "addressee_id"],
-  ["user_presence", "user_id"],
+  ["user_mutes", "muter_id"],
+  ["user_mutes", "muted_id"],
   ["user_warnings", "user_id"],
   ["user_warnings", "issued_by"],
   ["username_history", "userId"],
-  ["vote_events", "user_id"],
-  ["votes", "user_id"],
   ["site_settings", "updated_by"],
 ];
 
@@ -223,10 +205,10 @@ function buildSql(mapping) {
     .join(",\n  ");
   if (!values) return "-- No legacy user IDs require rekeying.\n";
 
-  const mapTable = `CREATE TABLE IF NOT EXISTS vth_user_id_rekey_map (old_id TEXT PRIMARY KEY, new_id TEXT NOT NULL UNIQUE);\nDELETE FROM vth_user_id_rekey_map;\nINSERT INTO vth_user_id_rekey_map (old_id, new_id) VALUES\n  ${values};`;
+  const mapTable = `CREATE TABLE IF NOT EXISTS sokdak_user_id_rekey_map (old_id TEXT PRIMARY KEY, new_id TEXT NOT NULL UNIQUE);\nDELETE FROM sokdak_user_id_rekey_map;\nINSERT INTO sokdak_user_id_rekey_map (old_id, new_id) VALUES\n  ${values};`;
   const updates = TABLES.map(
     ([table, column]) =>
-      `UPDATE "${table}" SET "${column}" = (SELECT new_id FROM vth_user_id_rekey_map WHERE old_id = "${column}") WHERE "${column}" IN (SELECT old_id FROM vth_user_id_rekey_map);`
+      `UPDATE "${table}" SET "${column}" = (SELECT new_id FROM sokdak_user_id_rekey_map WHERE old_id = "${column}") WHERE "${column}" IN (SELECT old_id FROM sokdak_user_id_rekey_map);`
   ).join("\n");
   return `PRAGMA foreign_keys = ON;
 PRAGMA defer_foreign_keys = ON;
@@ -246,24 +228,22 @@ SET pair_key = (
   WHERE room_id = chat_rooms.id
 )
 WHERE EXISTS (SELECT 1 FROM chat_room_members WHERE room_id = chat_rooms.id);
-UPDATE user_friendships
-SET pair_key = MIN(requester_id, addressee_id) || ':' || MAX(requester_id, addressee_id);
 
 -- Polymorphic user targets have no foreign key and must be updated explicitly.
 UPDATE reports
-SET target_id = (SELECT new_id FROM vth_user_id_rekey_map WHERE old_id = reports.target_id)
+SET target_id = (SELECT new_id FROM sokdak_user_id_rekey_map WHERE old_id = reports.target_id)
 WHERE target_type = 'user'
-  AND target_id IN (SELECT old_id FROM vth_user_id_rekey_map);
+  AND target_id IN (SELECT old_id FROM sokdak_user_id_rekey_map);
 UPDATE moderation_actions
-SET target_id = (SELECT new_id FROM vth_user_id_rekey_map WHERE old_id = moderation_actions.target_id)
+SET target_id = (SELECT new_id FROM sokdak_user_id_rekey_map WHERE old_id = moderation_actions.target_id)
 WHERE target_type = 'user'
-  AND target_id IN (SELECT old_id FROM vth_user_id_rekey_map);
+  AND target_id IN (SELECT old_id FROM sokdak_user_id_rekey_map);
 
 UPDATE "user"
-SET id = (SELECT new_id FROM vth_user_id_rekey_map WHERE old_id = "user".id)
-WHERE id IN (SELECT old_id FROM vth_user_id_rekey_map);
+SET id = (SELECT new_id FROM sokdak_user_id_rekey_map WHERE old_id = "user".id)
+WHERE id IN (SELECT old_id FROM sokdak_user_id_rekey_map);
 
-DROP TABLE vth_user_id_rekey_map;
+DROP TABLE sokdak_user_id_rekey_map;
 `;
 }
 

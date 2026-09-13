@@ -1,7 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 
-const USER_ID_HEADER = "x-vth-user-id";
-const INTERNAL_TOKEN_HEADER = "x-vth-realtime-token";
+const USER_ID_HEADER = "x-sokdak-user-id";
+const INTERNAL_TOKEN_HEADER = "x-sokdak-realtime-token";
 
 export interface ChatRoomEnv {
   DB: D1Database;

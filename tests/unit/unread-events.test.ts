@@ -70,7 +70,7 @@ describe("cross-tab unread events", () => {
     ]);
 
     const channel = FakeBroadcastChannel.instances[0];
-    expect(channel?.name).toBe("vth-unread");
+    expect(channel?.name).toBe("sokdak-unread");
     channel?.dispatchEvent(
       Object.assign(new Event("message"), {
         data: { reconcile: true },
@@ -94,7 +94,7 @@ describe("cross-tab unread events", () => {
       received.push({ change, source });
     });
     const event = Object.assign(new Event("storage"), {
-      key: "vth-unread-changed",
+      key: "sokdak-unread-changed",
       newValue: JSON.stringify({
         id: "other-tab",
         change: { messageDelta: 2 },

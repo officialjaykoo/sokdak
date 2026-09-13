@@ -40,6 +40,13 @@ export async function GET(
     }
 
     const session = await getSession();
+    // Anonymous board: profile activity is only visible to the owner and
+    // admins.
+    const isOwner = session?.user?.id === lookup.profile.id;
+    const isAdmin = session?.user?.role === "admin";
+    if (!isOwner && !isAdmin) {
+      return await jsonLocalizedError("User not found", 404);
+    }
     const relation = await getProfileRelation(
       session?.user?.id,
       lookup.profile.id
@@ -58,17 +65,13 @@ export async function GET(
       cursor,
       limit,
       sort: "new",
-      mode: "popular",
       viewerUserId: session?.user?.id ?? null,
     });
-    const serialized = serializeFeed(
-      {
-        posts: feed.posts.map((post) => ({ ...post, kind: "post" as const })),
-        nextCursor: feed.nextCursor,
-        hasMore: feed.hasMore,
-      },
-      session?.user?.id ?? null
-    );
+    const serialized = serializeFeed({
+      posts: feed.posts.map((post) => ({ ...post, kind: "post" as const })),
+      nextCursor: feed.nextCursor,
+      hasMore: feed.hasMore,
+    });
     return NextResponse.json({
       posts: serialized.posts.filter((post) => post.kind === "post"),
       nextCursor: serialized.nextCursor,

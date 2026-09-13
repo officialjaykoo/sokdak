@@ -1,6 +1,6 @@
 # Security Policy
 
-Việt tại Hàn (VTH) is an actively developed social/community application deployed at `vth.kr`.
+속닥속닥 (Sokdak) is an actively developed anonymous community application deployed at `sokdak.kr`.
 
 Security reports are welcome. Please do **not** disclose exploitable vulnerabilities publicly before they have been reviewed and fixed.
 
@@ -8,7 +8,7 @@ Security reports are welcome. Please do **not** disclose exploitable vulnerabili
 
 Security fixes are made against the current `main` branch and the production deployment derived from it.
 
-Older forks, local deployments, and third-party instances may have different configuration and are not maintained by the VTH project.
+Older forks, local deployments, and third-party instances may have different configuration and are not maintained by the Sokdak project.
 
 ## Reporting a vulnerability
 
@@ -46,10 +46,10 @@ A useful report should include:
 
 High-priority security areas include:
 
-- Facebook, Kakao, and Zalo OAuth/account linking
+- Kakao OAuth and account linking
 - session and onboarding authorization
 - mutable usernames vs. immutable `user.id` identity
-- follow/friend/block privacy rules
+- block/mute/hide privacy rules
 - direct messages and message requests
 - message/report moderation access
 - notifications and browser push
@@ -58,7 +58,6 @@ High-priority security areas include:
 - D1 query authorization and object ownership
 - Turnstile, rate limiting, and abuse controls
 - internal/sealed API routes
-- billing/webhook signature verification when enabled
 
 ## Secrets
 
@@ -69,11 +68,8 @@ Examples include:
 - `.dev.vars` and production `.env*` files
 - `BETTER_AUTH_SECRET`
 - `TURNSTILE_SECRET_KEY`
-- `FACEBOOK_CLIENT_SECRET`
 - `KAKAO_CLIENT_SECRET`
-- `ZALO_APP_SECRET`
 - `VAPID_PRIVATE_KEY`
-- billing/webhook secrets
 - Cloudflare API tokens
 - personal API keys or bearer tokens
 
@@ -83,7 +79,7 @@ Public identifiers such as OAuth client IDs, Turnstile site keys, and VAPID publ
 
 ## Responsible testing
 
-When testing `vth.kr`:
+When testing `sokdak.kr`:
 
 - use accounts you control
 - do not access another user's private data
@@ -96,7 +92,7 @@ For load, race-condition, or Worker resource-limit testing, use a local or isola
 
 ## Deployment security expectations
 
-Operators of their own VTH fork are responsible for:
+Operators of their own Sokdak fork are responsible for:
 
 - registering correct OAuth redirect URIs
 - keeping all provider secrets private

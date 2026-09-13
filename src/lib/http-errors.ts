@@ -47,7 +47,7 @@ function errorCopy(locale: Locale, kind: HttpErrorKind) {
 /** Standalone HTML that matches the branded ErrorScreen look. */
 export function renderErrorHtml(
   kind: HttpErrorKind,
-  locale: Locale = "vi"
+  locale: Locale = "ko"
 ): string {
   const copy = errorCopy(locale, kind);
   const lang = locale;
@@ -57,7 +57,7 @@ export function renderErrorHtml(
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="robots" content="noindex" />
-  <title>${copy.code} · Việt tại Hàn</title>
+  <title>${copy.code} · 속닥속닥</title>
   <style>
     :root {
       --background: #faf9f7;
@@ -146,7 +146,7 @@ export function htmlErrorResponse(
 ): Response {
   const status =
     options?.status ?? (kind === "method_not_allowed" ? 405 : 404);
-  return new Response(renderErrorHtml(kind, options?.locale ?? "vi"), {
+  return new Response(renderErrorHtml(kind, options?.locale ?? "ko"), {
     status,
     headers: {
       "Content-Type": "text/html; charset=utf-8",

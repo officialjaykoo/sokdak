@@ -20,17 +20,12 @@ interface CloudflareEnv {
 	EXPENSIVE_IP_RATE_LIMITER: RateLimit;
 	BETTER_AUTH_SECRET: string;
 	BETTER_AUTH_URL: string;
-	VTH_AUTH_ORIGINS?: string;
-	FACEBOOK_CLIENT_ID?: string;
-	FACEBOOK_CLIENT_SECRET?: string;
-	ZALO_APP_ID?: string;
-	ZALO_APP_SECRET?: string;
+	SOKDAK_AUTH_ORIGINS?: string;
 	KAKAO_CLIENT_ID?: string;
 	KAKAO_CLIENT_SECRET?: string;
 	VAPID_PUBLIC_KEY?: string;
 	VAPID_PRIVATE_KEY?: string;
 	VAPID_SUBJECT?: string;
-	BILLING_WEBHOOK_SECRET?: string;
 	TURNSTILE_SECRET_KEY: string;
 	NEXT_PUBLIC_TURNSTILE_SITE_KEY: string;
 	NEXTJS_ENV?: string;
@@ -40,17 +35,12 @@ declare namespace NodeJS {
 	interface ProcessEnv {
 		BETTER_AUTH_SECRET?: string;
 		BETTER_AUTH_URL?: string;
-		VTH_AUTH_ORIGINS?: string;
-		FACEBOOK_CLIENT_ID?: string;
-		FACEBOOK_CLIENT_SECRET?: string;
-		ZALO_APP_ID?: string;
-		ZALO_APP_SECRET?: string;
+		SOKDAK_AUTH_ORIGINS?: string;
 		KAKAO_CLIENT_ID?: string;
 		KAKAO_CLIENT_SECRET?: string;
 		VAPID_PUBLIC_KEY?: string;
 		VAPID_PRIVATE_KEY?: string;
 		VAPID_SUBJECT?: string;
-		BILLING_WEBHOOK_SECRET?: string;
 		TURNSTILE_SECRET_KEY?: string;
 		NEXT_PUBLIC_TURNSTILE_SITE_KEY?: string;
 		TURNSTILE_SITE_KEY?: string;

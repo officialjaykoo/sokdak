@@ -13,7 +13,7 @@ import { getPostDetail } from "@/lib/content";
 import { deleteAccount } from "@/lib/admin";
 import { AuthError } from "@/lib/session";
 
-import { getCommentRow, getPostRow, seedUsersAndSubreddit } from "./helpers";
+import { getCommentRow, getPostRow, seedUsers } from "./helpers";
 
 function expectAuthStatus(error: unknown, status: number) {
   expect(error).toBeInstanceOf(AuthError);
@@ -22,10 +22,9 @@ function expectAuthStatus(error: unknown, status: number) {
 
 describe("comment tree integrity (D1)", () => {
   it("allows depths 0, 1, 2 and rejects depth 3 without inserting", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Maximum depth post",
       body: "Depth test",
     });
@@ -75,10 +74,9 @@ describe("comment tree integrity (D1)", () => {
   });
 
   it("rejects replies to removed or author-deleted parents", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Unavailable parent post",
       body: "Parent state test",
     });
@@ -115,10 +113,9 @@ describe("comment tree integrity (D1)", () => {
   });
 
   it("keeps a parent and child intact when parent author deletion is attempted", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Parent deletion conflict",
       body: "Keep the tree",
     });
@@ -148,10 +145,9 @@ describe("comment tree integrity (D1)", () => {
   });
 
   it("deletes a leaf without reparenting or changing its parent", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Leaf deletion",
       body: "Leaf test",
     });
@@ -187,10 +183,9 @@ describe("comment tree integrity (D1)", () => {
   });
 
   it("blocks deletion of a middle node and keeps the grandchild attached", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Middle deletion conflict",
       body: "Keep descendants",
     });
@@ -229,10 +224,9 @@ describe("comment tree integrity (D1)", () => {
   });
 
   it("blocks author post deletion when comments exist and allows an empty post", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const commentedPost = await createPost({
       userId: authorId,
-      subredditId,
       title: "Post deletion conflict",
       body: "Has a comment",
     });
@@ -250,7 +244,6 @@ describe("comment tree integrity (D1)", () => {
 
     const emptyPost = await createPost({
       userId: authorId,
-      subredditId,
       title: "Empty post deletion",
       body: "No comments",
     });
@@ -259,10 +252,9 @@ describe("comment tree integrity (D1)", () => {
   });
 
   it("does not promote a child whose parent is absent from the result set", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Orphan presentation",
       body: "Hidden parent",
     });
@@ -288,10 +280,9 @@ describe("comment tree integrity (D1)", () => {
   });
 
   it("repairs legacy deleted parent flags without reparenting and preserves children", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Legacy tombstone repair",
       body: "Legacy flags",
     });
@@ -350,10 +341,9 @@ describe("comment tree integrity (D1)", () => {
   });
 
   it("keeps moderator tombstones in the tree with their children", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Moderator tombstone",
       body: "Preserve replies",
     });
@@ -388,11 +378,10 @@ describe("comment tree integrity (D1)", () => {
   });
 
   it("soft-deletes an account and moderation-tombstones its comments", async () => {
-    const { adminId, authorId, actorId, subredditId } =
-      await seedUsersAndSubreddit();
+    const { adminId, authorId, actorId} =
+      await seedUsers();
     const post = await createPost({
       userId: actorId,
-      subredditId,
       title: "Account deletion target",
       body: "Comment owner will be deleted",
     });
@@ -418,10 +407,9 @@ describe("comment tree integrity (D1)", () => {
   });
 
   it("serializes concurrent reply and parent deletion without an orphan", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Concurrent tree mutation",
       body: "One operation must win",
     });
@@ -459,10 +447,9 @@ describe("comment tree integrity (D1)", () => {
   });
 
   it("keeps legacy depth-three relationships readable", async () => {
-    const { authorId, actorId, subredditId } = await seedUsersAndSubreddit();
+    const { authorId, actorId} = await seedUsers();
     const post = await createPost({
       userId: authorId,
-      subredditId,
       title: "Legacy deep thread",
       body: "Read without truncation",
     });

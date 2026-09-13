@@ -1,7 +1,6 @@
 import { AuthError } from "@/lib/session";
 
 export type CreatePostPayload = {
-  subreddit: string;
   title: string;
   body?: string | null;
   url?: string | null;
@@ -59,7 +58,6 @@ function optionalNonNullString(
 export function parseCreatePostPayload(value: unknown): CreatePostPayload {
   const record = asRecord(value);
   return {
-    subreddit: requiredString(record, "subreddit"),
     title: requiredString(record, "title"),
     body: optionalString(record, "body"),
     url: optionalString(record, "url"),

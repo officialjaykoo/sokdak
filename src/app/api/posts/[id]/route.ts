@@ -31,7 +31,7 @@ export async function GET(
     if (!post) {
       return await jsonLocalizedError("Post not found", 404);
     }
-    return NextResponse.json(serializePostDetail(post, viewerUserId), {
+    return NextResponse.json(serializePostDetail(post), {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {
@@ -78,9 +78,9 @@ export async function DELETE(
     const { id } = await context.params;
     const db = await getDb();
     const post = await db
-      .prepare(`SELECT author_id, subreddit_id FROM posts WHERE id = ?`)
+      .prepare(`SELECT author_id FROM posts WHERE id = ?`)
       .bind(id)
-      .first<{ author_id: string; subreddit_id: string }>();
+      .first<{ author_id: string }>();
 
     if (!post) {
       return await jsonLocalizedError("Post not found", 404);
@@ -90,7 +90,7 @@ export async function DELETE(
     if (post.author_id === user.id) {
       await deleteOwnPost(id, user.id);
     } else {
-      await requireModeratorOrAdmin(user, post.subreddit_id);
+      await requireModeratorOrAdmin(user);
       await removePostForModeration(id, user.id);
     }
     return NextResponse.json({ ok: true });

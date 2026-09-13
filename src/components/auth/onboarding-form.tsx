@@ -15,7 +15,6 @@ import type { OnboardingState } from "@/lib/onboarding";
 import { createUsernameCandidate } from "@/lib/username";
 
 const LANGUAGE_LABEL_KEYS: Record<Locale, MessageKey> = {
-  vi: "language.vietnamese",
   ko: "language.korean",
   en: "language.english",
 };

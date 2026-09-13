@@ -23,7 +23,6 @@ export async function setPostSaved(input: {
     .prepare(
       `SELECT p.id
        FROM posts p
-       INNER JOIN subreddits s ON s.id = p.subreddit_id
        WHERE p.id = ? AND ${publicPostVisibilitySql()}`
     )
     .bind(input.postId)
@@ -61,14 +60,9 @@ export async function listSavedPosts(
   const { results } = await db
     .prepare(
       `SELECT
-         p.id, p.title, p.body, p.url, p.media_key,
-         p.like_count, p.comment_count, p.created_at,
-         p.source_lang, p.translation_target_lang,
-         p.title_translated, p.body_translated, p.translation_status,
-         u.id AS author_id, u.username AS author_username,
-         u.name AS author_display_name, u.image AS author_image,
-         s.id AS subreddit_id, s.name AS subreddit_name,
-         s.title AS subreddit_title,
+         p.id, p.rowid AS num, p.title, p.body, p.url, p.media_key,
+         p.like_count, p.comment_count, p.views, p.is_notice, p.created_at,
+         u.id AS author_id, u.role AS author_role,
          EXISTS (
            SELECT 1 FROM post_likes pl
            WHERE pl.post_id = p.id AND pl.user_id = ?
@@ -78,7 +72,6 @@ export async function listSavedPosts(
        FROM post_saves ps
        INNER JOIN posts p ON p.id = ps.post_id
        INNER JOIN "user" u ON u.id = p.author_id
-       INNER JOIN subreddits s ON s.id = p.subreddit_id
        WHERE ps.user_id = ?
          AND ${publicPostVisibilitySql()}
        ORDER BY ps.created_at DESC, ps.post_id DESC

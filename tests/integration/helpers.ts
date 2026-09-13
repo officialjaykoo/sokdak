@@ -4,19 +4,15 @@ export type SeededUsers = {
   adminId: string;
   authorId: string;
   actorId: string;
-  subredditId: string;
-  subredditName: string;
 };
 
-/** Insert two users + one community for action tests. */
-export async function seedUsersAndSubreddit(
+/** Insert three users for action tests. */
+export async function seedUsers(
   suffix = crypto.randomUUID().slice(0, 8)
 ): Promise<SeededUsers> {
   const adminId = `u_admin_${suffix}`;
   const authorId = `u_author_${suffix}`;
   const actorId = `u_actor_${suffix}`;
-  const subredditId = `s_${suffix}`;
-  const subredditName = `c_${suffix}`;
   await env.DB.prepare(
     `INSERT INTO "user" (id, name, email, emailVerified, username, role, status)
      VALUES (?, 'Admin', ?, 1, ?, 'admin', 'active')`
@@ -37,14 +33,7 @@ export async function seedUsersAndSubreddit(
     .bind(actorId, `${actorId}@test.local`, `actor_${suffix}`)
     .run();
 
-  await env.DB.prepare(
-    `INSERT INTO subreddits (id, name, title, created_by, subscriber_count)
-     VALUES (?, ?, 'Test community', ?, 0)`
-  )
-    .bind(subredditId, subredditName, authorId)
-    .run();
-  return { adminId, authorId, actorId, subredditId, subredditName };
-
+  return { adminId, authorId, actorId };
 }
 
 export async function getPostRow(postId: string) {

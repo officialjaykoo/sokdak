@@ -20,79 +20,63 @@ test.describe("authenticated flows", () => {
     await seedLocaleCookie(page);
   });
 
-  test("account can post, comment, like, hide, open settings, browse communities", async ({
+  test("account can post, comment, like, hide, open settings", async ({
     page,
   }) => {
     await disguiseAutomation(page);
     await loginAsAlice(page);
     await expectSignedIn(page);
     await expect(
-      page.getByRole("heading", { name: "Việt tại Hàn", level: 1 })
+      page.getByRole("heading", { name: "속닥속닥", level: 1 })
     ).toBeVisible();
 
     // Create post
     await page.goto("/submit", { waitUntil: "domcontentloaded" });
     await warmBotGuard(page);
     await waitForHydration(page);
-    await expect(page.getByText(/cộng đồng/i).first()).toBeVisible({
+    await expect(
+      page.getByRole("heading", { name: /글 작성/i }).first()
+    ).toBeVisible({
       timeout: 30_000,
     });
 
     const title = `E2E post ${Date.now()}`;
+    await page.getByPlaceholder("흥미로운 제목").fill(title);
     await page
-      .getByRole("button", { name: /cộng đồng/i })
-      .click();
-    await page.getByPlaceholder(/cộng đồng/i).fill("cloudflare");
-    await page
-      .getByRole("option")
-      .filter({ hasText: /cloudflare/i })
-      .first()
-      .click();
-    await page.getByPlaceholder("Một tiêu đề thú vị").fill(title);
-    await page
-      .getByPlaceholder("Chia sẻ thêm thông tin…")
+      .getByPlaceholder("내용을 더 작성해 주세요…")
       .fill("Created by Playwright e2e.");
-    await page.getByRole("button", { name: /^đăng$/i }).click();
+    await page.getByRole("button", { name: /^게시$/ }).click();
     await expect(page).toHaveURL(/\/post\//, { timeout: 45_000 });
     await expect(page.getByRole("link", { name: title })).toBeVisible();
 
     // Comment + like
     await warmBotGuard(page);
     const commentBody = `E2E comment ${Date.now()}`;
-    await page.getByLabel(/^bình luận$/i).fill(commentBody);
-    await page.getByRole("button", { name: /^bình luận$/i }).click();
+    await page.getByLabel(/^댓글$/).fill(commentBody);
+    await page.getByRole("button", { name: /^댓글$/ }).click();
     await expect(
       page.getByRole("listitem").filter({ hasText: commentBody })
     ).toBeVisible({ timeout: 30_000 });
 
-    const likeButton = page.getByRole("button", { name: /^thích$/i }).first();
+    const likeButton = page.getByRole("button", { name: /^좋아요$/ }).first();
     await likeButton.click();
     await expect(likeButton).toHaveAttribute("aria-pressed", "true", {
       timeout: 15_000,
     });
 
     // Hide via overflow (success toast is cleared by router.refresh)
-    await page.getByRole("button", { name: /tùy chọn bài đăng/i }).click();
-    await page.getByRole("menuitem", { name: /không quan tâm/i }).click();
+    await page.getByRole("button", { name: /글 옵션/i }).click();
+    await page.getByRole("menuitem", { name: /관심 없음/i }).click();
     await expect(
-      page.getByRole("menuitem", { name: /không quan tâm/i })
+      page.getByRole("menuitem", { name: /관심 없음/i })
     ).toBeHidden({ timeout: 15_000 });
 
     // Settings
     await page.goto("/settings", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/settings/);
     await expect(
-      page.getByRole("heading", { name: /cài đặt/i }).first()
+      page.getByRole("heading", { name: /설정/i }).first()
     ).toBeVisible({ timeout: 20_000 });
-
-    // Browse the communities directory.
-    await page.goto("/communities", { waitUntil: "domcontentloaded" });
-    await expect(
-      page.getByRole("heading", { name: /cộng đồng/i, level: 1 })
-    ).toBeVisible({ timeout: 20_000 });
-    await expect(
-      page.getByRole("button", { name: /tạo cộng đồng/i })
-    ).toHaveCount(0);
   });
   test("profile and settings preserve callback errors and mobile keyboard UX", async ({
     page,
@@ -105,7 +89,7 @@ test.describe("authenticated flows", () => {
       { waitUntil: "domcontentloaded" }
     );
     await waitForHydration(page);
-    await expect(page.locator('p[role="alert"]')).toContainText(/kakao login/i);
+    await expect(page.locator('p[role="alert"]')).toContainText(/카카오 로그인/i);
     await expect(page).toHaveURL(/\/settings\?section=account$/);
 
     await page.goto("/settings?section=profile", {
@@ -113,18 +97,18 @@ test.describe("authenticated flows", () => {
     });
     await waitForHydration(page);
     await expect(
-      page.getByRole("textbox", { name: /tên người dùng/i })
+      page.getByRole("textbox", { name: /사용자 이름/i })
     ).toBeVisible();
     const username = page.getByRole("textbox", {
-      name: /tên người dùng/i,
+      name: /사용자 이름/i,
     });
     await username.fill("alice_keyboard");
-    const save = page.getByRole("button", { name: /lưu hồ sơ/i });
+    const save = page.getByRole("button", { name: /프로필 저장/i });
     await save.click();
 
     const dialog = page.getByRole("dialog");
-    const cancel = dialog.getByRole("button", { name: /hủy/i });
-    const confirm = dialog.getByRole("button", { name: /đổi và lưu/i });
+    const cancel = dialog.getByRole("button", { name: /취소/i });
+    const confirm = dialog.getByRole("button", { name: /변경 및 저장/i });
     await expect(dialog).toBeVisible();
     await expect(cancel).toBeFocused();
     await page.keyboard.press("Tab");
@@ -139,10 +123,10 @@ test.describe("authenticated flows", () => {
       waitUntil: "domcontentloaded",
     });
     await expect(
-      page.getByRole("link", { name: "Bài đăng" })
+      page.getByRole("link", { name: "글", exact: true })
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Bài đăng" })
+      page.getByRole("link", { name: "글", exact: true })
     ).toHaveAttribute("href", "/u/alice?tab=posts");
     const layout = await page.evaluate(() => ({
       width: document.documentElement.clientWidth,
@@ -159,22 +143,22 @@ test.describe("authenticated flows", () => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     const composer = page.getByTestId("feed-composer");
     await expect(
-      composer.getByRole("link", { name: /hình ảnh/i })
+      composer.getByRole("link", { name: /이미지/i })
     ).toHaveAttribute("href", "/submit?type=image");
     await expect(
-      composer.getByRole("link", { name: /đường dẫn/i })
+      composer.getByRole("link", { name: /링크/i })
     ).toHaveAttribute("href", "/submit?type=link");
 
     await page.goto("/submit?type=image", { waitUntil: "domcontentloaded" });
     await waitForHydration(page);
-    await expect(page.getByRole("tab", { name: /hình ảnh/i })).toHaveAttribute(
+    await expect(page.getByRole("tab", { name: /이미지/i })).toHaveAttribute(
       "aria-selected",
       "true"
     );
 
     await page.goto("/submit?type=link", { waitUntil: "domcontentloaded" });
     await waitForHydration(page);
-    await expect(page.getByRole("tab", { name: /đường dẫn/i })).toHaveAttribute(
+    await expect(page.getByRole("tab", { name: /링크/i })).toHaveAttribute(
       "aria-selected",
       "true"
     );
@@ -188,19 +172,12 @@ test.describe("authenticated flows", () => {
     await page.goto("/submit?type=text", { waitUntil: "domcontentloaded" });
     await waitForHydration(page);
     await warmBotGuard(page);
-    await page.getByRole("button", { name: /cộng đồng/i }).click();
-    await page.getByPlaceholder(/cộng đồng/i).fill("cloudflare");
-    await page
-      .getByRole("option")
-      .filter({ hasText: /cloudflare/i })
-      .first()
-      .click();
 
     const title = `Detail body ${Date.now()}`;
     const body = `Unique detail body ${Date.now()}`;
-    await page.getByPlaceholder("Một tiêu đề thú vị").fill(title);
-    await page.getByPlaceholder("Chia sẻ thêm thông tin…").fill(body);
-    await page.getByRole("button", { name: /^đăng$/i }).click();
+    await page.getByPlaceholder("흥미로운 제목").fill(title);
+    await page.getByPlaceholder("내용을 더 작성해 주세요…").fill(body);
+    await page.getByRole("button", { name: /^게시$/ }).click();
 
     await expect(page).toHaveURL(/\/post\//, { timeout: 45_000 });
     await expect(page.getByText(body, { exact: true })).toHaveCount(1);
@@ -212,15 +189,11 @@ test.describe("authenticated flows", () => {
     await expectSignedIn(page);
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(
-      page.getByRole("button", { name: /menu tài khoản/i })
+      page.getByRole("button", { name: /계정 메뉴/i })
     ).toBeVisible({ timeout: 20_000 });
     const links = await page.evaluate(() => {
       const expected = [
         "/",
-        "/communities",
-        "/questions",
-        "/marketplace",
-        "/recommended",
         "/submit",
         "/messages",
         "/notifications",
@@ -243,23 +216,19 @@ test.describe("authenticated flows", () => {
       };
       return {
         primary,
-        actions: expected.slice(5).map(visible),
+        actions: expected.slice(1).map(visible),
       };
     });
     const expected = [
       "/",
-      "/communities",
-      "/questions",
-      "/marketplace",
-      "/recommended",
       "/submit",
       "/messages",
       "/notifications",
     ];
 
-    expect(links.primary.map(({ href }) => href)).toEqual(expected.slice(0, 5));
+    expect(links.primary.map(({ href }) => href)).toEqual(expected.slice(0, 1));
     expect(links.actions).not.toContain(null);
-    expect(links.actions.map((link) => link?.href)).toEqual(expected.slice(5));
+    expect(links.actions.map((link) => link?.href)).toEqual(expected.slice(1));
     const ordered = [
       ...links.primary.map(({ left }) => left),
       ...links.actions.map((link) => link?.left ?? Number.POSITIVE_INFINITY),
@@ -277,11 +246,11 @@ test.describe("authenticated flows", () => {
 
     const header = page.getByRole("banner");
     const mobileNav = page.locator("nav.safe-pb-nav");
-    const menu = header.getByRole("button", { name: /menu tài khoản/i });
-    const logo = header.getByRole("link", { name: /trang chủ việt tại hàn/i });
-    const create = header.getByRole("link", { name: /^đăng bài$/i });
-    const search = header.getByRole("link", { name: /^tìm kiếm$/i });
-    const messages = header.getByRole("link", { name: /^tin nhắn$/i });
+    const menu = header.getByRole("button", { name: /계정 메뉴/i });
+    const logo = header.getByRole("link", { name: /속닥속닥 홈/i });
+    const create = header.getByRole("link", { name: /^글쓰기$/ });
+    const search = header.getByRole("link", { name: /^검색$/ });
+    const messages = header.getByRole("link", { name: /^메시지$/ });
 
     await expect(menu).toBeVisible();
     await expect(logo).toBeVisible();
@@ -291,10 +260,7 @@ test.describe("authenticated flows", () => {
     await expect(
       menu.locator("svg.lucide-circle-user-round")
     ).toBeHidden();
-    await expect(
-      mobileNav.locator('a[aria-label="Đăng bài"]')
-    ).toHaveCount(0);
-    await expect(mobileNav.getByRole("link")).toHaveCount(5);
+    await expect(mobileNav.getByRole("link")).toHaveCount(4);
 
     const positions = await Promise.all(
       [menu, logo, create, search, messages].map(async (locator) => {
@@ -353,7 +319,7 @@ test.describe("authenticated flows", () => {
         .map((cookie) => [cookie.name, cookie.value])
     );
     const beforeLocale = beforeLogout.find(
-      (cookie) => cookie.name === "vth_lang"
+      (cookie) => cookie.name === "sokdak_lang"
     )?.value;
     const expiredGuardResponse = page.waitForResponse(
       async (response) => {
@@ -374,13 +340,13 @@ test.describe("authenticated flows", () => {
     );
 
     const header = page.getByTestId("site-header");
-    await header.getByRole("button", { name: /menu tài khoản/i }).click();
+    await header.getByRole("button", { name: /계정 메뉴/i }).click();
     const menu = page.getByRole("menu");
     await expect(menu).toContainText("@alice");
-    await expect(menu.getByRole("menuitem", { name: /đăng xuất/i })).toHaveCount(
+    await expect(menu.getByRole("menuitem", { name: /로그아웃/i })).toHaveCount(
       1
     );
-    await menu.getByRole("menuitem", { name: /đăng xuất/i }).click();
+    await menu.getByRole("menuitem", { name: /로그아웃/i }).click();
 
     const logoutResponse = await expiredGuardResponse;
     const logoutSetCookie = (await logoutResponse.allHeaders())["set-cookie"] ?? "";
@@ -398,11 +364,10 @@ test.describe("authenticated flows", () => {
 
     await expect(page).toHaveURL(/\/$/, { timeout: 45_000 });
     await expect(
-      header.getByRole("link", { name: /đăng nhập/i })
+      header.getByRole("link", { name: /로그인/i })
     ).toHaveCount(1, { timeout: 45_000 });
-    await expect(header.getByRole("link", { name: /đăng ký/i })).toHaveCount(0);
-    await expect(header.getByRole("link", { name: /tin nhắn/i })).toHaveCount(0);
-    await expect(header.getByRole("link", { name: /thông báo/i })).toHaveCount(0);
+    await expect(header.getByRole("link", { name: /메시지/i })).toHaveCount(0);
+    await expect(header.getByRole("link", { name: /알림/i })).toHaveCount(0);
     await expect(header.getByAltText("@alice")).toHaveCount(0);
 
     const afterLogout = await page.context().cookies(baseURL);
@@ -415,11 +380,11 @@ test.describe("authenticated flows", () => {
       if (beforeGuard[name]) expect(afterGuard[name]).not.toBe(beforeGuard[name]);
     }
     expect(
-      afterLogout.find((cookie) => cookie.name === "vth_lang")?.value
+      afterLogout.find((cookie) => cookie.name === "sokdak_lang")?.value
     ).toBe(beforeLocale);
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(header.getByRole("link", { name: /đăng nhập/i })).toHaveCount(1);
+    await expect(header.getByRole("link", { name: /로그인/i })).toHaveCount(1);
     const sessionResponse = await page.request.get("/api/auth/get-session");
     expect(sessionResponse.ok()).toBe(true);
     expect(await sessionResponse.json()).toBeNull();
@@ -433,14 +398,14 @@ test.describe("authenticated flows", () => {
     await expectSignedIn(page);
 
     const header = page.getByTestId("site-header");
-    await header.getByRole("button", { name: /menu tài khoản/i }).click();
-    await page.getByRole("menuitem", { name: /đăng xuất/i }).click();
+    await header.getByRole("button", { name: /계정 메뉴/i }).click();
+    await page.getByRole("menuitem", { name: /로그아웃/i }).click();
     await expect(page).toHaveURL(/\/$/, { timeout: 45_000 });
 
-    await header.getByRole("link", { name: /đăng nhập/i }).click();
+    await header.getByRole("link", { name: /로그인/i }).click();
     await expect(page).toHaveURL(/\/login$/, { timeout: 15_000 });
     await expect(
-      page.getByRole("heading", { name: /tiếp tục với/i })
+      page.getByRole("heading", { name: /속닥속닥 계속하기/i })
     ).toBeVisible();
     await expect(page.getByText("문제가 발생했습니다")).toHaveCount(0);
   });
@@ -456,14 +421,14 @@ test.describe("authenticated flows", () => {
 
     await page
       .getByTestId("site-header")
-      .getByRole("button", { name: /menu tài khoản/i })
+      .getByRole("button", { name: /계정 메뉴/i })
       .click();
-    await page.getByRole("menuitem", { name: /đăng xuất/i }).click();
+    await page.getByRole("menuitem", { name: /로그아웃/i }).click();
 
     await expect(page).toHaveURL(/\/$/, { timeout: 45_000 });
     await expect(page.getByTestId("messages-page")).toHaveCount(0);
     await expect(
-      page.getByTestId("site-header").getByRole("link", { name: /tin nhắn/i })
+      page.getByTestId("site-header").getByRole("link", { name: /메시지/i })
     ).toHaveCount(0);
   });
 
@@ -475,7 +440,7 @@ test.describe("authenticated flows", () => {
     await expectSignedIn(page);
 
     const header = page.getByTestId("site-header");
-    await header.getByRole("button", { name: /menu tài khoản/i }).click();
+    await header.getByRole("button", { name: /계정 메뉴/i }).click();
     await page.route("**/i/api*", async (route) => {
       await route.fulfill({
         status: 503,
@@ -484,10 +449,10 @@ test.describe("authenticated flows", () => {
       });
     });
 
-    await page.getByRole("menuitem", { name: /đăng xuất/i }).click();
+    await page.getByRole("menuitem", { name: /로그아웃/i }).click();
     await expect(page).toHaveURL(/\/$/, { timeout: 10_000 });
-    await expect(header.getByRole("button", { name: /menu tài khoản/i })).toBeVisible();
-    await expect(header.getByRole("alert")).toContainText(/không thể đăng xuất/i);
+    await expect(header.getByRole("button", { name: /계정 메뉴/i })).toBeVisible();
+    await expect(header.getByRole("alert")).toContainText(/로그아웃하지 못했습니다/i);
     await page.unroute("**/i/api*");
   });
 
@@ -505,17 +470,17 @@ test.describe("authenticated flows", () => {
 
       await page
         .getByTestId("site-header")
-        .getByRole("button", { name: /menu tài khoản/i })
+        .getByRole("button", { name: /계정 메뉴/i })
         .click();
-      await page.getByRole("menuitem", { name: /đăng xuất/i }).click();
+      await page.getByRole("menuitem", { name: /로그아웃/i }).click();
       await expect(page).toHaveURL(/\/$/, { timeout: 45_000 });
 
       await otherTab.bringToFront();
       await expect(
-        otherTab.getByRole("link", { name: /đăng nhập/i })
+        otherTab.getByRole("link", { name: /로그인/i })
       ).toHaveCount(1, { timeout: 30_000 });
       await expect(
-        otherTab.getByRole("button", { name: /menu tài khoản/i })
+        otherTab.getByRole("button", { name: /계정 메뉴/i })
       ).toHaveCount(0);
     } finally {
       await otherTab.close();

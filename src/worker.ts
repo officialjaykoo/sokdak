@@ -44,7 +44,7 @@ type EnvWithLimits = CloudflareEnv & {
   E2E_BOT_BYPASS?: string;
 };
 const REALTIME_PATH = "/api/messages/realtime";
-const DEVELOPER_HOST = "developers.vth.kr";
+const DEVELOPER_HOST = "developers.sokdak.kr";
 
 function routeDeveloperRequest(request: Request): Request {
   const url = new URL(request.url);
@@ -109,11 +109,7 @@ async function handleRealtime(
     const auth = createAuth(env.DB, {
       BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
       BETTER_AUTH_URL: env.BETTER_AUTH_URL,
-      VTH_AUTH_ORIGINS: env.VTH_AUTH_ORIGINS,
-      FACEBOOK_CLIENT_ID: env.FACEBOOK_CLIENT_ID,
-      FACEBOOK_CLIENT_SECRET: env.FACEBOOK_CLIENT_SECRET,
-      ZALO_APP_ID: env.ZALO_APP_ID,
-      ZALO_APP_SECRET: env.ZALO_APP_SECRET,
+      SOKDAK_AUTH_ORIGINS: env.SOKDAK_AUTH_ORIGINS,
       KAKAO_CLIENT_ID: env.KAKAO_CLIENT_ID,
       KAKAO_CLIENT_SECRET: env.KAKAO_CLIENT_SECRET,
     });
@@ -132,8 +128,8 @@ async function handleRealtime(
   }
 
   const headers = new Headers(request.headers);
-  headers.set("X-VTH-User-ID", user.id);
-  headers.set("X-VTH-Realtime-Token", env.BETTER_AUTH_SECRET);
+  headers.set("X-Sokdak-User-ID", user.id);
+  headers.set("X-Sokdak-Realtime-Token", env.BETTER_AUTH_SECRET);
 
   const stub = env.CHAT_ROOM.get(env.CHAT_ROOM.idFromName(roomId));
   return stub.fetch(new Request(request, { headers }));
@@ -165,10 +161,8 @@ export default {
 
       // 3) Cap expensive logical routes (AI / search / challenge bootstrap)
       if (
-        pathname.startsWith("/api/recommendations") ||
         pathname.startsWith("/api/search") ||
-        pathname.startsWith("/api/security/challenge") ||
-        pathname.startsWith("/recommended")
+        pathname.startsWith("/api/security/challenge")
       ) {
         if (env.EXPENSIVE_IP_RATE_LIMITER) {
           const { success } = await env.EXPENSIVE_IP_RATE_LIMITER.limit({

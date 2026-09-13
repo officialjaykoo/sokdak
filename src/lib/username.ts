@@ -1,9 +1,10 @@
-export const TEMPORARY_USERNAME_PREFIX = "vth_user_";
+export const TEMPORARY_USERNAME_PREFIX = "sokdak_user_";
+const LEGACY_TEMPORARY_USERNAME_PREFIX = "vth_user_";
 export const USERNAME_MIN_LENGTH = 3;
 export const USERNAME_MAX_LENGTH = 24;
 export const USERNAME_CHANGE_COOLDOWN_DAYS = 90;
 export const USERNAME_REUSE_HOLD_DAYS = 180;
-export const DEFAULT_DISPLAY_NAME = "VTH User";
+export const DEFAULT_DISPLAY_NAME = "Sokdak User";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]+$/;
 const COMBINING_MARKS = /\p{M}/gu;
@@ -37,7 +38,9 @@ export function validateUsername(value: unknown): UsernameValidation {
 
 export function isTemporaryUsername(value: unknown): boolean {
   return (
-    typeof value === "string" && value.startsWith(TEMPORARY_USERNAME_PREFIX)
+    typeof value === "string" &&
+    (value.startsWith(TEMPORARY_USERNAME_PREFIX) ||
+      value.startsWith(LEGACY_TEMPORARY_USERNAME_PREFIX))
   );
 }
 
@@ -65,7 +68,7 @@ function slugifyUsernameCandidate(value: string): string | null {
 }
 
 export function createRandomUsernameCandidate(): string {
-  return `vth_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`;
+  return `sokdak_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`;
 }
 
 export function createUsernameCandidate(input: {

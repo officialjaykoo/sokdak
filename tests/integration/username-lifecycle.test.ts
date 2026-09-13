@@ -2,13 +2,16 @@ import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 import { resolvePublicProfile, toPublicProfile } from "@/lib/content";
-import { friendPairKey } from "@/lib/friends";
 import { completeOnboarding } from "@/lib/onboarding";
 import {
   changeUsername,
   updateUserProfileAndUsername,
 } from "@/lib/username-lifecycle";
 
+
+function pairKey(a: string, b: string) {
+  return [a, b].sort().join(":");
+}
 
 async function insertUser(input: {
   id: string;
@@ -290,23 +293,16 @@ describe("username lifecycle", () => {
     const viewerId = `username_fk_viewer_${crypto.randomUUID()}`;
     const oldUsername = `fk_old_${crypto.randomUUID().slice(0, 6)}`;
     const newUsername = `fk_new_${crypto.randomUUID().slice(0, 6)}`;
-    const subredditId = `username_fk_subreddit_${crypto.randomUUID()}`;
     const postId = `username_fk_post_${crypto.randomUUID()}`;
     const commentId = `username_fk_comment_${crypto.randomUUID()}`;
     await insertUser({ id: authorId, username: oldUsername });
     await insertUser({ id: viewerId, username: `fk_viewer_${crypto.randomUUID().slice(0, 6)}` });
 
     await env.DB.prepare(
-      `INSERT INTO subreddits (id, name, title, created_by)
-       VALUES (?, ?, 'Username FK test', ?)`
+      `INSERT INTO posts (id, author_id, title, body)
+       VALUES (?, ?, 'Username FK post', 'body')`
     )
-      .bind(subredditId, `username_fk_${crypto.randomUUID().slice(0, 8)}`, authorId)
-      .run();
-    await env.DB.prepare(
-      `INSERT INTO posts (id, subreddit_id, author_id, title, body)
-       VALUES (?, ?, ?, 'Username FK post', 'body')`
-    )
-      .bind(postId, subredditId, authorId)
+      .bind(postId, authorId)
       .run();
     await env.DB.prepare(
       `INSERT INTO comments (id, post_id, author_id, body)
@@ -314,32 +310,21 @@ describe("username lifecycle", () => {
     )
       .bind(commentId, postId, authorId)
       .run();
-    await env.DB.prepare(
-      `INSERT INTO user_follows (follower_id, following_id)
-       VALUES (?, ?)`
-    )
-      .bind(viewerId, authorId)
-      .run();
-
     await changeUsername({ userId: authorId, username: newUsername });
 
     const ownership = await env.DB.prepare(
       `SELECT
          (SELECT author_id FROM posts WHERE id = ?) AS postAuthor,
-         (SELECT author_id FROM comments WHERE id = ?) AS commentAuthor,
-         (SELECT following_id FROM user_follows
-          WHERE follower_id = ? AND following_id = ?) AS followedUser`
+         (SELECT author_id FROM comments WHERE id = ?) AS commentAuthor`
     )
-      .bind(postId, commentId, viewerId, authorId)
+      .bind(postId, commentId)
       .first<{
         postAuthor: string;
         commentAuthor: string;
-        followedUser: string;
       }>();
     expect(ownership).toEqual({
       postAuthor: authorId,
       commentAuthor: authorId,
-      followedUser: authorId,
     });
   });
   it("keeps social and DM relationships attached to the immutable user id", async () => {
@@ -348,7 +333,6 @@ describe("username lifecycle", () => {
     const viewerId = `username_relation_viewer_${suffix}`;
     const oldUsername = `relation_old_${crypto.randomUUID().slice(0, 6)}`;
     const newUsername = `relation_new_${crypto.randomUUID().slice(0, 6)}`;
-    const friendshipId = `username_relation_friendship_${suffix}`;
     const roomId = `username_relation_room_${suffix}`;
     const messageId = `username_relation_message_${suffix}`;
     const requestId = `username_relation_request_${suffix}`;
@@ -360,25 +344,12 @@ describe("username lifecycle", () => {
     });
     await env.DB.batch([
       env.DB.prepare(
-        `INSERT INTO user_follows (follower_id, following_id) VALUES (?, ?)`
-      ).bind(viewerId, authorId),
-      env.DB.prepare(
         `INSERT INTO user_blocks (blocker_id, blocked_id) VALUES (?, ?)`
       ).bind(authorId, viewerId),
       env.DB.prepare(
-        `INSERT INTO user_friendships (
-           id, pair_key, requester_id, addressee_id, status
-         ) VALUES (?, ?, ?, ?, 'accepted')`
-      ).bind(
-        friendshipId,
-        friendPairKey(viewerId, authorId),
-        viewerId,
-        authorId
-      ),
-      env.DB.prepare(
         `INSERT INTO chat_rooms (id, pair_key, created_by)
          VALUES (?, ?, ?)`
-      ).bind(roomId, friendPairKey(viewerId, authorId), authorId),
+      ).bind(roomId, pairKey(viewerId, authorId), authorId),
       env.DB.prepare(
         `INSERT INTO chat_room_members (
            room_id, user_id, role, membership_status
@@ -404,11 +375,8 @@ describe("username lifecycle", () => {
 
     const relationships = await env.DB.prepare(
       `SELECT
-         (SELECT following_id FROM user_follows
-          WHERE follower_id = ? AND following_id = ?) AS followedUser,
          (SELECT blocker_id FROM user_blocks
           WHERE blocker_id = ? AND blocked_id = ?) AS blockerUser,
-         (SELECT addressee_id FROM user_friendships WHERE id = ?) AS friendUser,
          (SELECT created_by FROM chat_rooms WHERE id = ?) AS roomOwner,
          (SELECT user_id FROM chat_room_members
           WHERE room_id = ? AND user_id = ?) AS memberUser,
@@ -417,11 +385,8 @@ describe("username lifecycle", () => {
          (SELECT id FROM "user" WHERE username = ?) AS renamedUser`
     )
       .bind(
-        viewerId,
-        authorId,
         authorId,
         viewerId,
-        friendshipId,
         roomId,
         roomId,
         authorId,
@@ -430,9 +395,7 @@ describe("username lifecycle", () => {
         newUsername
       )
       .first<{
-        followedUser: string;
         blockerUser: string;
-        friendUser: string;
         roomOwner: string;
         memberUser: string;
         senderUser: string;
@@ -441,9 +404,7 @@ describe("username lifecycle", () => {
       }>();
 
     expect(relationships).toEqual({
-      followedUser: authorId,
       blockerUser: authorId,
-      friendUser: authorId,
       roomOwner: authorId,
       memberUser: authorId,
       senderUser: authorId,

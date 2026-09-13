@@ -48,13 +48,10 @@ export async function DELETE(
     const db = await getDb();
     const comment = await db
       .prepare(
-        `SELECT c.author_id, p.subreddit_id
-         FROM comments c
-         INNER JOIN posts p ON p.id = c.post_id
-         WHERE c.id = ?`
+        `SELECT author_id FROM comments WHERE id = ?`
       )
       .bind(id)
-      .first<{ author_id: string; subreddit_id: string }>();
+      .first<{ author_id: string }>();
 
     if (!comment) {
       return await jsonLocalizedError("Comment not found", 404);
@@ -64,7 +61,7 @@ export async function DELETE(
     if (comment.author_id === user.id) {
       await deleteOwnComment(id, user.id);
     } else {
-      await requireModeratorOrAdmin(user, comment.subreddit_id);
+      await requireModeratorOrAdmin(user);
       await removeCommentForModeration(id, user.id);
     }
     return NextResponse.json({ ok: true });

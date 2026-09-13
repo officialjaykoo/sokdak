@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { cancelChatRequest, respondToChatRequest } from "@/lib/messages";
+import { isDmEnabled } from "@/lib/settings";
 import { AuthError, jsonAuthError, requireSession } from "@/lib/session";
 import { jsonLocalizedError } from "@/lib/public-error";
 import { parseChatRequestActionPayload } from "@/lib/relationship-payload";
@@ -23,6 +24,11 @@ export async function POST(
         "action must be accept, decline, or cancel",
         400
       );
+    }
+    // Accepting creates a chat room — blocked while DMs are disabled.
+    // Decline/cancel stay allowed so pending requests can still be cleared.
+    if (body.action === "accept" && !(await isDmEnabled())) {
+      return await jsonLocalizedError("Direct messages are disabled", 403);
     }
 
     const result =

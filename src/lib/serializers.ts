@@ -6,11 +6,9 @@ import type {
   PaginatedFeed,
 } from "@/lib/types";
 
-/** Public author — no internal user UUID. */
+/** Public author — anonymous per-thread tag only. No username, no user id. */
 export type PublicAuthor = {
-  username: string;
-  displayName: string | null;
-  image: string | null;
+  anonTag: string;
   tags: AccountTag[];
   isAuthor: boolean;
 };
@@ -26,6 +24,7 @@ export type PublicComment = {
   id: string;
   postId: string;
   parentId: string | null;
+  num: number;
   body: string;
   likeCount: number;
   liked: boolean;
@@ -33,8 +32,7 @@ export type PublicComment = {
   createdAt: string;
   isDeleted: boolean;
   isRemoved: boolean;
-  translation: FeedPost["translation"];
-  author: PublicAuthor;
+  author: PublicAuthor & { isOp: boolean };
   children: PublicComment[];
 };
 
@@ -55,84 +53,63 @@ export type PublicCommentLikeResult = {
   liked: boolean;
 };
 
-function publicAuthor(
-  author: {
-    id?: string | null;
-    username: string | null;
-    displayName: string | null;
-    image: string | null;
-    tags: AccountTag[];
-    isAuthor?: boolean;
-  },
-  viewerUserId?: string | null
-): PublicAuthor {
+function publicAuthor(author: {
+  id?: string | null;
+  anonTag: string;
+  tags: AccountTag[];
+  isAuthor?: boolean;
+}): PublicAuthor {
   return {
-    username: author.username ?? "unknown",
-    displayName: author.displayName,
-    image: author.image,
+    anonTag: author.anonTag,
     tags: author.tags ?? [],
-    isAuthor:
-      author.isAuthor ??
-      Boolean(viewerUserId && author.id && viewerUserId === author.id),
+    isAuthor: Boolean(author.isAuthor),
   };
 }
 
 export function serializeFeedPost(
-  post: FeedPost,
-  viewerUserId?: string | null
+  post: FeedPost
 ): PublicFeedPost {
   return {
     kind: "post",
     id: post.id,
+    num: post.num,
     title: post.title,
     body: post.body,
     url: post.url,
     mediaKey: post.mediaKey,
     likeCount: post.likeCount,
+    views: post.views,
+    isNotice: post.isNotice,
     liked: post.liked,
     saved: post.saved,
     commentCount: post.commentCount,
     createdAt: post.createdAt,
-    translation: post.translation,
-    author: publicAuthor(post.author, viewerUserId),
-    subreddit: {
-      id: post.subreddit.id,
-      name: post.subreddit.name,
-      title: post.subreddit.title,
-    },
+    author: publicAuthor(post.author),
   };
 }
 
-export function serializeFeedItem(
-  item: FeedItem,
-  viewerUserId?: string | null
-): PublicFeedPost {
-  return serializeFeedPost(item, viewerUserId);
+export function serializeFeedItem(item: FeedItem): PublicFeedPost {
+  return serializeFeedPost(item);
 }
 
-export function serializeFeed(
-  feed: PaginatedFeed,
-  viewerUserId?: string | null
-): {
+export function serializeFeed(feed: PaginatedFeed): {
   posts: PublicFeedItem[];
   nextCursor: string | null;
   hasMore: boolean;
 } {
   return {
-    posts: feed.posts.map((item) => serializeFeedItem(item, viewerUserId)),
+    posts: feed.posts.map(serializeFeedItem),
     nextCursor: feed.nextCursor,
     hasMore: feed.hasMore,
   };
 }
 
-export function serializeComment(
-  comment: CommentNode,
-  viewerUserId?: string | null
-): PublicComment {
+export function serializeComment(comment: CommentNode): PublicComment {
   return {
     id: comment.id,
     postId: comment.postId,
     parentId: comment.parentId,
+    num: comment.num,
     body: comment.body,
     likeCount: comment.likeCount,
     liked: comment.liked,
@@ -140,33 +117,16 @@ export function serializeComment(
     createdAt: comment.createdAt,
     isDeleted: comment.isDeleted,
     isRemoved: comment.isRemoved,
-    translation: comment.translation,
-    author: publicAuthor(
-      {
-        id: comment.author.id,
-        username: comment.author.username,
-        displayName: comment.author.displayName,
-        image: comment.author.image,
-        tags: comment.author.tags,
-      },
-      viewerUserId
-    ),
-    children: comment.children.map((child) =>
-      serializeComment(child, viewerUserId)
-    ),
+    author: { ...publicAuthor(comment.author), isOp: comment.author.isOp },
+    children: comment.children.map(serializeComment),
   };
 }
 
-export function serializePostDetail(
-  post: PostDetail,
-  viewerUserId?: string | null
-): PublicPostDetail {
+export function serializePostDetail(post: PostDetail): PublicPostDetail {
   return {
-    ...serializeFeedPost(post, viewerUserId),
+    ...serializeFeedPost(post),
     isLocked: post.isLocked,
-    comments: post.comments.map((comment) =>
-      serializeComment(comment, viewerUserId)
-    ),
+    comments: post.comments.map(serializeComment),
   };
 }
 
@@ -191,27 +151,5 @@ export function serializeCommentLikeResult(result: {
     commentId: result.commentId,
     likeCount: result.likeCount,
     liked: result.liked,
-  };
-}
-
-
-/** Community payload without creator UUID. */
-export function serializeCommunity(sub: {
-  id: string;
-  name: string;
-  title: string;
-  description: string | null;
-  subscriberCount?: number;
-  subscriber_count?: number;
-  createdAt?: string;
-  created_at?: string;
-}) {
-  return {
-    id: sub.id,
-    name: sub.name,
-    title: sub.title,
-    description: sub.description,
-    subscriberCount: sub.subscriberCount ?? sub.subscriber_count ?? 0,
-    createdAt: sub.createdAt ?? sub.created_at ?? null,
   };
 }

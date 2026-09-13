@@ -8,9 +8,6 @@ import { AuthError } from "@/lib/session";
 export type NotificationKind =
   | "comment_on_post"
   | "reply_to_comment"
-  | "follow"
-  | "friend_request"
-  | "friend_accepted"
   | "chat_request"
   | "chat_accepted"
   | "warning"
@@ -20,9 +17,6 @@ const BLOCK_GUARDED_NOTIFICATION_KINDS: ReadonlySet<NotificationKind> = new Set(
   "comment_on_post",
   "reply_to_comment",
   "mention",
-  "follow",
-  "friend_request",
-  "friend_accepted",
   "chat_request",
   "chat_accepted",
 ]);
@@ -88,13 +82,12 @@ export async function createNotification(input: {
   const db = await getDb();
   const prefs = await db
     .prepare(
-      `SELECT notifyComments, notifyFollows, notifyChat, notifyMentions
+      `SELECT notifyComments, notifyChat, notifyMentions
        FROM "user" WHERE id = ?`
     )
     .bind(input.userId)
     .first<{
       notifyComments: number;
-      notifyFollows: number;
       notifyChat: number;
       notifyMentions: number;
     }>();
@@ -103,14 +96,6 @@ export async function createNotification(input: {
     if (
       (input.kind === "comment_on_post" || input.kind === "reply_to_comment") &&
       !prefs.notifyComments
-    ) {
-      return null;
-    }
-    if (
-      (input.kind === "follow" ||
-        input.kind === "friend_request" ||
-        input.kind === "friend_accepted") &&
-      !prefs.notifyFollows
     ) {
       return null;
     }
@@ -128,8 +113,7 @@ export async function createNotification(input: {
     input.actorId &&
       BLOCK_GUARDED_NOTIFICATION_KINDS.has(input.kind)
   );
-  const requestGuarded =
-    input.kind === "friend_request" || input.kind === "chat_request";
+  const requestGuarded = input.kind === "chat_request";
   const muteGuarded = Boolean(
     input.actorId &&
       MUTE_GUARDED_NOTIFICATION_KINDS.has(input.kind)
@@ -153,25 +137,13 @@ export async function createNotification(input: {
              AND (
                ? = 0
                OR (
-                 (
-                   ? = 'friend_request'
-                   AND EXISTS (
-                     SELECT 1 FROM user_friendships
-                     WHERE id = ?
-                       AND requester_id = ?
-                       AND addressee_id = ?
-                       AND status = 'pending'
-                   )
-                 )
-                 OR (
-                   ? = 'chat_request'
-                   AND EXISTS (
-                     SELECT 1 FROM chat_requests
-                     WHERE id = ?
-                       AND from_user_id = ?
-                       AND to_user_id = ?
-                       AND status = 'pending'
-                   )
+                 ? = 'chat_request'
+                 AND EXISTS (
+                   SELECT 1 FROM chat_requests
+                   WHERE id = ?
+                     AND from_user_id = ?
+                     AND to_user_id = ?
+                     AND status = 'pending'
                  )
                )
              )
@@ -202,10 +174,6 @@ export async function createNotification(input: {
         input.actorId ?? null,
         input.userId,
         requestGuarded ? 1 : 0,
-        input.kind,
-        input.sourceRequestId ?? null,
-        input.actorId ?? null,
-        input.userId,
         input.kind,
         input.sourceRequestId ?? null,
         input.actorId ?? null,
@@ -264,7 +232,7 @@ export function actionableNotificationReadStatements(
   input: {
     recipientId: string;
     actorId: string;
-    kind: "friend_request" | "chat_request";
+    kind: "chat_request";
     sourceRequestId: string;
   }
 ) {
@@ -308,7 +276,7 @@ export function actionableNotificationReadStatements(
 export async function reconcileActionableNotification(input: {
   recipientId: string;
   actorId: string;
-  kind: "friend_request" | "chat_request";
+  kind: "chat_request";
   sourceRequestId: string;
 }) {
   const db = await getDb();
@@ -353,28 +321,30 @@ export async function listNotifications(
       actor_image: string | null;
     }>();
 
-  return (results ?? []).map((row) => ({
-    id: row.id,
-    kind: row.kind,
-    title: row.title,
-    body: row.body,
-    href: row.href,
-    isRead: Boolean(row.is_read),
-    createdAt: row.created_at,
-    actor: row.actor_username
-      ? {
-          username: row.actor_username,
-          displayName: row.actor_display_name,
-          image: row.actor_image,
-        }
-      : row.actor_display_name
-        ? {
-            username: null,
-            displayName: row.actor_display_name,
-            image: row.actor_image,
-          }
-        : null,
-  }));
+  return (results ?? []).map((row) => {
+    // Anonymous board: board notifications never expose the actor identity.
+    // DM request/accept kinds keep it — those are direct contacts where the
+    // recipient must know who knocked.
+    const exposeActor =
+      row.kind === "chat_request" || row.kind === "chat_accepted";
+    return {
+      id: row.id,
+      kind: row.kind,
+      title: row.title,
+      body: row.body,
+      href: row.href,
+      isRead: Boolean(row.is_read),
+      createdAt: row.created_at,
+      actor:
+        exposeActor && row.actor_username
+          ? {
+              username: row.actor_username,
+              displayName: row.actor_display_name,
+              image: row.actor_image,
+            }
+          : null,
+    };
+  });
 }
 
 export async function countUnreadNotifications(userId: string): Promise<number> {

@@ -3,15 +3,12 @@ import type { AllowDms } from "@/lib/user-settings";
 
 export type DmRelationship = {
   blocked: boolean;
-  friends: boolean;
-  senderFollowsRecipient: boolean;
-  recipientFollowsSender: boolean;
   allowDms: AllowDms;
   directAllowed: boolean;
   requestAllowed: boolean;
   activeEstablishedRoom: boolean;
   canMessage: boolean;
-  messageMode: "existing" | "direct" | "request" | "none";
+  messageMode: "existing" | "request" | "none";
 };
 
 function pairKey(firstUserId: string, secondUserId: string): string {
@@ -25,8 +22,9 @@ function normalizeAllowDms(value: unknown): AllowDms {
 
 /**
  * Evaluate the complete DM relationship policy for one sender/recipient pair.
- * Follow directions are intentionally named from the participants' perspective
- * so request privacy and direct access cannot accidentally share a query.
+ * Established rooms keep working; new conversations start as requests when
+ * the recipient accepts DMs from anyone. "followers" is a legacy stored value
+ * that no longer grants request access (the follow graph was removed).
  */
 export async function getDmRelationship(input: {
   senderId: string;
@@ -41,18 +39,6 @@ export async function getDmRelationship(input: {
            WHERE (blocker_id = ? AND blocked_id = ?)
               OR (blocker_id = ? AND blocked_id = ?)
          ) AS blocked,
-         EXISTS (
-           SELECT 1 FROM user_friendships
-           WHERE pair_key = ? AND status = 'accepted'
-         ) AS friends,
-         EXISTS (
-           SELECT 1 FROM user_follows
-           WHERE follower_id = ? AND following_id = ?
-         ) AS sender_follows_recipient,
-         EXISTS (
-           SELECT 1 FROM user_follows
-           WHERE follower_id = ? AND following_id = ?
-         ) AS recipient_follows_sender,
          EXISTS (
            SELECT 1 FROM chat_rooms r
            WHERE r.pair_key = ?
@@ -82,50 +68,30 @@ export async function getDmRelationship(input: {
       pairKey(input.senderId, input.recipientId),
       input.senderId,
       input.recipientId,
-      input.recipientId,
-      input.senderId,
-      pairKey(input.senderId, input.recipientId),
-      input.senderId,
-      input.recipientId,
       input.recipientId
     )
     .first<{
       blocked: number;
-      friends: number;
-      sender_follows_recipient: number;
-      recipient_follows_sender: number;
       active_established_room: number;
       allow_dms: string | null;
     }>();
 
   const blocked = Boolean(row?.blocked);
-  const friends = Boolean(row?.friends);
-  const senderFollowsRecipient = Boolean(row?.sender_follows_recipient);
-  const recipientFollowsSender = Boolean(row?.recipient_follows_sender);
   const activeEstablishedRoom = Boolean(row?.active_established_room);
   const allowDms = normalizeAllowDms(row?.allow_dms);
-  const directAllowed =
-    !blocked && (friends || recipientFollowsSender);
+  const directAllowed = !blocked && activeEstablishedRoom;
   const requestAllowed =
-    !blocked &&
-    !directAllowed &&
-    (allowDms === "anyone" ||
-      (allowDms === "followers" && senderFollowsRecipient));
+    !blocked && !activeEstablishedRoom && allowDms === "anyone";
   const canMessage =
     !blocked && (activeEstablishedRoom || directAllowed || requestAllowed);
   const messageMode = activeEstablishedRoom
     ? "existing"
-    : directAllowed
-      ? "direct"
-      : requestAllowed
-        ? "request"
-        : "none";
+    : requestAllowed
+      ? "request"
+      : "none";
 
   return {
     blocked,
-    friends,
-    senderFollowsRecipient,
-    recipientFollowsSender,
     allowDms,
     directAllowed,
     requestAllowed,

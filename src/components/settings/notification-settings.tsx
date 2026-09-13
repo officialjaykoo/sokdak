@@ -40,7 +40,7 @@ export function NotificationSettings({
     patch: Partial<
       Pick<
         UserSettings,
-        "notifyComments" | "notifyFollows" | "notifyChat" | "notifyMentions"
+        "notifyComments" | "notifyChat" | "notifyMentions"
       >
     >
   ) {
@@ -76,12 +76,6 @@ export function NotificationSettings({
           checked={settings.notifyComments}
           disabled={pending}
           onChange={(next) => savePreferences({ notifyComments: next })}
-        />
-        <ToggleRow
-          label={t("settings.notifyFollows")}
-          checked={settings.notifyFollows}
-          disabled={pending}
-          onChange={(next) => savePreferences({ notifyFollows: next })}
         />
         <ToggleRow
           label={t("settings.notifyChat")}

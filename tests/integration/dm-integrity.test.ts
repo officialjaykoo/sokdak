@@ -58,16 +58,38 @@ async function allowMultipleRequests() {
 }
 
 async function allowDirectAccess(senderId: string, recipientId: string) {
+  const pairKey = [senderId, recipientId].sort().join(":");
+  const existing = await env.DB
+    .prepare(`SELECT id FROM chat_rooms WHERE pair_key = ?`)
+    .bind(pairKey)
+    .first<{ id: string }>();
+  const roomId = existing?.id ?? `dm_direct_${crypto.randomUUID()}`;
   await env.DB.batch([
-    env.DB
-      .prepare(`UPDATE "user" SET allowDms = 'followers' WHERE id = ?`)
-      .bind(recipientId),
+    ...(existing
+      ? []
+      : [
+          env.DB
+            .prepare(
+              `INSERT INTO chat_rooms (id, pair_key, created_by) VALUES (?, ?, ?)`
+            )
+            .bind(roomId, pairKey, senderId),
+        ]),
     env.DB
       .prepare(
-        `INSERT OR IGNORE INTO user_follows (follower_id, following_id)
-         VALUES (?, ?)`
+        `INSERT INTO chat_room_members (room_id, user_id, role, membership_status)
+         VALUES (?, ?, 'owner', 'active')
+         ON CONFLICT (room_id, user_id)
+         DO UPDATE SET membership_status = 'active'`
       )
-      .bind(recipientId, senderId),
+      .bind(roomId, senderId),
+    env.DB
+      .prepare(
+        `INSERT INTO chat_room_members (room_id, user_id, role, membership_status)
+         VALUES (?, ?, 'member', 'active')
+         ON CONFLICT (room_id, user_id)
+         DO UPDATE SET membership_status = 'active'`
+      )
+      .bind(roomId, recipientId),
   ]);
 }
 

@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { createSubreddit } from "@/lib/actions";
 import {
   addBannedWord,
   deleteAccount,
-  deleteSubreddit,
   getAdminDashboard,
+  setPostNotice,
   setUserStatus,
-  updateSubreddit,
   warnUser,
 } from "@/lib/admin";
-import { reviewBusinessVerification } from "@/lib/businesses";
 import {
   reviewChatMessageReport,
   reviewChatRoomReport,
 } from "@/lib/dm-moderation";
-import { reviewListingReport } from "@/lib/marketplace";
 import { reviewContentReport } from "@/lib/review-queue";
 import {
   setSiteSetting,
@@ -49,10 +45,6 @@ export async function POST(request: NextRequest) {
     const body = (await readApiJson(request)) as {
       op?: string;
       userId?: string;
-      subredditId?: string;
-      name?: string;
-      title?: string;
-      description?: string;
       word?: string;
       severity?: "shadow" | "block";
       wordId?: string;
@@ -61,56 +53,17 @@ export async function POST(request: NextRequest) {
       key?: string;
       value?: string;
       values?: Record<string, string>;
-      limit?: number;
       action?: "ban" | "unban" | "shadowban" | "unshadowban";
       reportId?: string;
       reportStatus?: "reviewed" | "dismissed";
-      removeListing?: boolean;
       removeTarget?: boolean;
       removeMessage?: boolean;
       resolutionNote?: string;
-      verificationId?: string;
-      verificationStatus?: "approved" | "rejected";
-      verificationNote?: string;
+      postId?: string;
+      notice?: boolean;
     };
 
     switch (body.op) {
-      case "create_subreddit": {
-        if (!body.name || !body.title) {
-          return await jsonLocalizedError("Missing community fields", 400);
-        }
-        const result = await createSubreddit({
-          actor,
-          name: body.name,
-          title: body.title,
-          description: body.description,
-        });
-        return NextResponse.json(result, { status: 201 });
-      }
-      case "update_subreddit": {
-        if (!body.subredditId || !body.title) {
-          return await jsonLocalizedError("Missing community fields", 400);
-        }
-        await updateSubreddit({
-          actorId: actor.id,
-          subredditId: body.subredditId,
-          title: body.title,
-          description: body.description,
-        });
-        return NextResponse.json({ ok: true });
-      }
-      case "delete_subreddit": {
-        if (!body.subredditId) {
-          return await jsonLocalizedError("Missing subredditId", 400);
-        }
-        await deleteSubreddit({
-          actorId: actor.id,
-          subredditId: body.subredditId,
-          reason: body.reason,
-        });
-        return NextResponse.json({ ok: true });
-      }
-
       case "user_status": {
         if (!body.userId || !body.action) {
           return await jsonLocalizedError("Missing fields", 400);
@@ -180,23 +133,6 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json(result);
       }
-      case "review_listing_report": {
-        if (
-          !body.reportId ||
-          !body.reportStatus ||
-          !["reviewed", "dismissed"].includes(body.reportStatus)
-        ) {
-          return await jsonLocalizedError("Missing listing report fields", 400);
-        }
-        const result = await reviewListingReport({
-          reportId: body.reportId,
-          reviewerId: actor.id,
-          status: body.reportStatus,
-          removeListing: body.removeListing,
-          resolutionNote: body.resolutionNote,
-        });
-        return NextResponse.json(result);
-      }
       case "review_chat_message_report": {
         if (
           !body.reportId ||
@@ -230,30 +166,15 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json(result);
       }
-      case "review_business_verification": {
-        if (
-          !body.verificationId ||
-          !body.verificationStatus ||
-          !["approved", "rejected"].includes(body.verificationStatus)
-        ) {
-          return await jsonLocalizedError(
-            "Missing business verification fields",
-            400
-          );
+      case "post_notice": {
+        if (!body.postId || typeof body.notice !== "boolean") {
+          return await jsonLocalizedError("Missing postId or notice", 400);
         }
-        const result = await reviewBusinessVerification({
-          requestId: body.verificationId,
-          reviewerId: actor.id,
-          status: body.verificationStatus,
-          resolutionNote: body.verificationNote,
+        const result = await setPostNotice({
+          actorId: actor.id,
+          postId: body.postId,
+          notice: body.notice,
         });
-        return NextResponse.json(result);
-      }
-      case "backfill_translations": {
-        const { backfillContentTranslations } = await import("@/lib/translation");
-        const result = await backfillContentTranslations(
-          typeof body.limit === "number" ? body.limit : 100
-        );
         return NextResponse.json(result);
       }
       case "set_setting": {
