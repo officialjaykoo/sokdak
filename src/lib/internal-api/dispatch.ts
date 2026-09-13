@@ -46,7 +46,7 @@ function compile(
  * Logical app routes reachable via POST /i/api.
  * Paths stay under `/api/...` as internal handler locations.
  */
-const ROUTES: RouteEntry[] = [
+export const ROUTES: RouteEntry[] = [
   {
     methods: ["GET"],
     pattern: "/api/security/challenge",
@@ -168,6 +168,11 @@ const ROUTES: RouteEntry[] = [
     load: () => import("@/app/api/me/settings/route"),
   },
   {
+    methods: ["PATCH"],
+    pattern: "/api/me/username",
+    load: () => import("@/app/api/me/username/route"),
+  },
+  {
     methods: ["GET", "POST", "DELETE"],
     pattern: "/api/me/api-keys",
     load: () => import("@/app/api/me/api-keys/route"),
@@ -216,6 +221,11 @@ const ROUTES: RouteEntry[] = [
     methods: ["GET", "POST"],
     pattern: "/api/messages/:roomId",
     load: () => import("@/app/api/messages/[roomId]/route"),
+  },
+  {
+    methods: ["POST"],
+    pattern: "/api/messages/:roomId/read",
+    load: () => import("@/app/api/messages/[roomId]/read/route"),
   },
   {
     methods: ["POST"],
