@@ -267,7 +267,7 @@ test.describe("authenticated flows", () => {
     expect(ordered).toEqual([...ordered].sort((a, b) => a - b));
   });
 
-  test("mobile chrome stays visible during scroll and account menu", async ({
+  test("mobile chrome follows scroll direction and account menu", async ({
     page,
   }) => {
     await disguiseAutomation(page);
@@ -314,14 +314,10 @@ test.describe("authenticated flows", () => {
     await page.keyboard.press("Escape");
 
     await page.evaluate(() => window.scrollTo(0, 800));
-    await expect(header).toBeVisible();
-    await expect(mobileNav).toBeVisible();
-    await expect(header).not.toHaveClass(/-translate-y-full/);
-    await expect(mobileNav).not.toHaveClass(/translate-y-full/);
+    await expect(header).toHaveClass(/-translate-y-full/);
+    await expect(mobileNav).toHaveClass(/translate-y-full/);
 
     await page.evaluate(() => window.scrollTo(0, 500));
-    await expect(header).toBeVisible();
-    await expect(mobileNav).toBeVisible();
     await expect(header).not.toHaveClass(/-translate-y-full/);
     await expect(mobileNav).not.toHaveClass(/translate-y-full/);
   });

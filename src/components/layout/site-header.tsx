@@ -29,6 +29,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { useI18n } from "@/components/i18n/i18n-provider";
 import { useLocalizedError } from "@/components/i18n/use-localized-error";
 import { SearchForm } from "@/components/search/search-form";
+import { useScrollVisibility } from "@/components/layout/use-scroll-visibility";
 import { MessagesNavIcon } from "@/components/messages/messages-nav-icon";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
 import {
@@ -61,6 +62,7 @@ export function SiteHeader() {
   } = useSession();
   const [hydrated, setHydrated] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const mobileChromeVisible = useScrollVisibility();
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -149,7 +151,11 @@ export function SiteHeader() {
   return (
     <header
       data-testid="site-header"
-      className="sticky top-0 z-40 border-t-2 border-t-[var(--flag-red)] border-b border-border/70 bg-card/95 shadow-[0_1px_3px_rgb(0_0_0_/_8%)] backdrop-blur-md supports-[backdrop-filter]:bg-card/90 safe-pt-header"
+      className={cn(
+        "sticky top-0 z-40 border-t-2 border-t-[var(--flag-red)] border-b border-border/70 bg-card/95 shadow-[0_1px_3px_rgb(0_0_0_/_8%)] backdrop-blur-md supports-[backdrop-filter]:bg-card/90 safe-pt-header transition-transform duration-200 ease-out motion-reduce:transition-none",
+        !mobileChromeVisible &&
+          "-translate-y-full pointer-events-none sm:translate-y-0 sm:pointer-events-auto"
+      )}
     >
       <div className="relative mx-auto flex h-16 w-full max-w-[1240px] items-center gap-2 safe-px sm:gap-3">
         <Link
