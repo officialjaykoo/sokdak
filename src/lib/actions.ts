@@ -502,7 +502,14 @@ export async function createComment(input: {
       if (!meta) return;
       const actorLabel = "익명";
       const snippet = body.slice(0, 140);
-      const href = `/post/${input.postId}`;
+      const numRow = await db
+        .prepare(`SELECT num FROM comments WHERE id = ?`)
+        .bind(id)
+        .first<{ num: number | null }>();
+      const href =
+        numRow?.num != null
+          ? `/post/${input.postId}#comment-${numRow.num}`
+          : `/post/${input.postId}`;
 
       if (input.parentId && meta.parent_author_id) {
         notifyQuietly({

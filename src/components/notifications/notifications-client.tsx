@@ -95,7 +95,13 @@ export function NotificationsClient() {
   function titleFor(item: NotificationItem): string {
     const key = KIND_KEYS[item.kind];
     if (!key) return item.title;
-    const actor = locale === "ko" ? "익명" : "someone";
+    // Board kinds never carry an actor (anonymous); DM request/accept kinds do.
+    const actor =
+      item.actor?.username != null
+        ? `@${item.actor.username}`
+        : locale === "ko"
+          ? "익명"
+          : "someone";
     return t(key, { actor });
   }
 
