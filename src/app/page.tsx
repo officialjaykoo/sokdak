@@ -201,9 +201,6 @@ export default async function HomePage({
             <BoardList
               notices={board.notices}
               posts={board.posts}
-              page={board.page}
-              perPage={board.perPage}
-              total={board.total}
               locale={locale}
               labels={{
                 num: tLocale(locale, "board.num"),

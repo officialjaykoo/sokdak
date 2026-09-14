@@ -7,9 +7,6 @@ import { cn } from "@/lib/utils";
 type BoardListProps = {
   notices: FeedPost[];
   posts: FeedPost[];
-  page: number;
-  perPage: number;
-  total: number;
   locale: "ko" | "en";
   labels: {
     num: string;
@@ -49,13 +46,11 @@ function boardDate(value: string, locale: "ko" | "en") {
 
 function BoardRow({
   post,
-  displayNum,
   isNotice,
   locale,
   labels,
 }: {
   post: FeedPost;
-  displayNum: number | null;
   isNotice: boolean;
   locale: "ko" | "en";
   labels: BoardListProps["labels"];
@@ -74,7 +69,7 @@ function BoardRow({
             {labels.notice}
           </span>
         ) : (
-          displayNum
+          post.num
         )}
       </td>
       <td className="min-w-0 px-2 py-2.5">
@@ -139,15 +134,9 @@ function BoardRow({
 export function BoardList({
   notices,
   posts,
-  page,
-  perPage,
-  total,
   locale,
   labels,
 }: BoardListProps) {
-  // GNUBoard numbering: newest post gets the highest number.
-  const firstNum = total - (page - 1) * perPage;
-
   if (notices.length === 0 && posts.length === 0) {
     return (
       <div className="rounded-lg border border-border/70 bg-card px-4 py-12 text-center">
@@ -186,17 +175,15 @@ export function BoardList({
             <BoardRow
               key={`notice-${post.id}`}
               post={post}
-              displayNum={null}
               isNotice
               locale={locale}
               labels={labels}
             />
           ))}
-          {posts.map((post, index) => (
+          {posts.map((post) => (
             <BoardRow
               key={post.id}
               post={post}
-              displayNum={firstNum - index}
               isNotice={false}
               locale={locale}
               labels={labels}

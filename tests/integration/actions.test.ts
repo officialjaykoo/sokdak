@@ -214,6 +214,48 @@ describe("content lifecycle (D1)", () => {
       .first<{ count: number }>();
     expect(Number(commentCount?.count)).toBe(1);
   });
+
+  it("enforces request_id uniqueness at the database level", async () => {
+    const { authorId } = await seedUsers();
+    const requestId = crypto.randomUUID();
+    await createPost({
+      userId: authorId,
+      title: "Idempotency anchor post",
+      requestId,
+    });
+
+    await expect(
+      env.DB
+        .prepare(
+          `INSERT INTO posts (id, author_id, title, request_id)
+           VALUES (?, ?, ?, ?)`
+        )
+        .bind("dup-post-1", authorId, "Duplicate", requestId)
+        .run()
+    ).rejects.toThrow();
+
+    const post = await env.DB
+      .prepare(`SELECT id FROM posts WHERE author_id = ? AND request_id = ?`)
+      .bind(authorId, requestId)
+      .first<{ id: string }>();
+
+    const commentRequestId = crypto.randomUUID();
+    await createComment({
+      userId: authorId,
+      postId: post!.id,
+      body: "Idempotency anchor comment",
+      requestId: commentRequestId,
+    });
+    await expect(
+      env.DB
+        .prepare(
+          `INSERT INTO comments (id, post_id, author_id, body, request_id)
+           VALUES (?, ?, ?, ?, ?)`
+        )
+        .bind("dup-comment-1", post!.id, authorId, "Duplicate", commentRequestId)
+        .run()
+    ).rejects.toThrow();
+  });
 });
 describe("public feed hardening", () => {
   it("ranks popular posts by canonical engagement with a stable cursor", async () => {

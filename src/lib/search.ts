@@ -56,7 +56,8 @@ async function searchPosts(
 ): Promise<SearchPostHit[]> {
   const db = await getDb();
   const viewerClause = viewerUserId
-    ? `AND p.author_id NOT IN (SELECT muted_id FROM user_mutes WHERE muter_id = ?)
+    ? `AND p.id NOT IN (SELECT post_id FROM hidden_posts WHERE user_id = ?)
+       AND p.author_id NOT IN (SELECT muted_id FROM user_mutes WHERE muter_id = ?)
        AND p.author_id NOT IN (SELECT blocked_id FROM user_blocks WHERE blocker_id = ?)`
     : "";
   const { results } = await db
@@ -75,7 +76,7 @@ async function searchPosts(
     )
     .bind(
       ...(viewerUserId
-        ? [viewerUserId, viewerUserId, pattern, pattern, limit]
+        ? [viewerUserId, viewerUserId, viewerUserId, pattern, pattern, limit]
         : [pattern, pattern, limit])
     )
     .all<{

@@ -8,7 +8,8 @@ Active documentation for **속닥속닥 (Sokdak)** — a small anonymous Korean 
 2. [`ARCHITECTURE.md`](ARCHITECTURE.md) — runtime boundaries, state ownership, identity, security, and invariants.
 3. [`DATABASE.md`](DATABASE.md) — D1 schema overview, migration policy, and the baseline-squash layout.
 4. [`TESTING.md`](TESTING.md) — test layers, commands, and verification requirements.
-5. [`DEPLOYMENT.md`](DEPLOYMENT.md) — Cloudflare resources, secrets, deployment, and rollback.
+5. [`VERIFICATION.md`](VERIFICATION.md) — full-area audit checklist: automated suite, per-feature manual checks, security boundaries, data integrity, bug report format.
+6. [`DEPLOYMENT.md`](DEPLOYMENT.md) — Cloudflare resources, secrets, deployment, and rollback.
 
 If a feature document conflicts with one of these, fix the conflict rather than maintaining two truths.
 
