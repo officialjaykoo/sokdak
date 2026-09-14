@@ -31,7 +31,7 @@ export const en = {
   auth: {
     continueTitle: "Continue to 속닥속닥",
     continueDescription:
-      "Use Kakao to continue. Existing connections sign you in; new identities start profile setup.",
+      "Use Kakao or Naver to continue. Existing connections sign you in; new identities start profile setup.",
     continueHint:
       "No email or password is required. You can add a contact email later.",
     couldNotContinue: "Could not continue",
@@ -297,12 +297,13 @@ export const en = {
     contactEmailUpdated: "Contact email updated",
     connectedAccounts: "Connected accounts",
     connectedAccountsDesc:
-      "Connect a Kakao account explicitly. Matching email addresses are never linked automatically.",
+      "Connect Kakao or Naver accounts explicitly. Matching email addresses are never linked automatically.",
     connected: "Connected",
     notConnected: "Not connected",
     connect: "Connect",
     unlink: "Unlink",
     linkKakao: "Link Kakao",
+    linkNaver: "Link Naver",
     identityLoadFailed: "Could not load connected accounts",
     linkFailed: "Could not link account",
     unlinkFailed: "Could not unlink account",

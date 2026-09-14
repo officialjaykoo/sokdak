@@ -2,6 +2,24 @@
 
 import { Button } from "@/components/ui/button";
 
+function NaverBrandIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="size-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      focusable="false"
+    >
+      <rect width="24" height="24" rx="6" fill="#03C75A" />
+      <path
+        fill="#FFFFFF"
+        d="M8.2 5.5h2.3l4.9 6.7V5.5h2.4v13h-2.3l-4.9-6.7v6.7H8.2v-13Z"
+      />
+    </svg>
+  );
+}
+
 function KakaoBrandIcon() {
   return (
     <svg
@@ -25,25 +43,45 @@ function KakaoBrandIcon() {
 
 export function IdentityAuthButtons({
   pending,
+  providers,
   onKakao,
+  onNaver,
 }: {
   pending: boolean;
+  providers: { kakao: boolean; naver: boolean };
   onKakao: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onNaver: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
     <div className="grid gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        disabled={pending}
-        onClick={onKakao}
-        className="h-11 gap-2 border-yellow-400/50 bg-yellow-300/[0.12] hover:border-yellow-500/70 hover:bg-yellow-300/[0.22]"
-      >
-        <span className="grid w-24 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 text-left">
-          <KakaoBrandIcon />
-          <span>Kakao</span>
-        </span>
-      </Button>
+      {providers.kakao ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pending}
+          onClick={onKakao}
+          className="h-11 gap-2 border-yellow-400/50 bg-yellow-300/[0.12] hover:border-yellow-500/70 hover:bg-yellow-300/[0.22]"
+        >
+          <span className="grid w-24 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 text-left">
+            <KakaoBrandIcon />
+            <span>Kakao</span>
+          </span>
+        </Button>
+      ) : null}
+      {providers.naver ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pending}
+          onClick={onNaver}
+          className="h-11 gap-2 border-green-500/40 bg-green-500/[0.1] hover:border-green-500/60 hover:bg-green-500/[0.2]"
+        >
+          <span className="grid w-24 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 text-left">
+            <NaverBrandIcon />
+            <span>Naver</span>
+          </span>
+        </Button>
+      ) : null}
     </div>
   );
 }

@@ -3,6 +3,8 @@ import { SocialAuthPage } from "@/components/auth/social-auth-form";
 import { redirect } from "next/navigation";
 
 import { getSafeAuthNext } from "@/lib/auth-redirect";
+import { getEnv } from "@/lib/db";
+import { getOAuthProviderCapabilities } from "@/lib/oauth-providers";
 import { getSession } from "@/lib/session";
 
 type AuthPageProps = {
@@ -18,5 +20,8 @@ export default async function LoginPage({ searchParams }: AuthPageProps) {
     redirect(getSafeAuthNext(next));
   }
 
-  return <SocialAuthPage />;
+  const env = await getEnv();
+  return (
+    <SocialAuthPage providers={getOAuthProviderCapabilities(env)} />
+  );
 }

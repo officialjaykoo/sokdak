@@ -33,7 +33,7 @@ export const ko: Messages = {
   auth: {
     continueTitle: "속닥속닥 계속하기",
     continueDescription:
-      "Kakao로 계속하세요. 기존 연결은 로그인되고, 새 계정은 프로필 설정으로 이동합니다.",
+      "Kakao 또는 Naver로 계속하세요. 기존 연결은 로그인되고, 새 계정은 프로필 설정으로 이동합니다.",
     continueHint:
       "이메일이나 비밀번호가 필요하지 않습니다. 연락 이메일은 나중에 추가할 수 있습니다.",
     couldNotContinue: "계속할 수 없습니다",
@@ -292,12 +292,13 @@ export const ko: Messages = {
     contactEmailUpdated: "연락 이메일을 업데이트했습니다",
     connectedAccounts: "연결된 계정",
     connectedAccountsDesc:
-      "Kakao 계정을 직접 연결합니다. 이메일이 같아도 자동으로 연결하지 않습니다.",
+      "Kakao·Naver 계정을 직접 연결합니다. 이메일이 같아도 자동으로 연결하지 않습니다.",
     connected: "연결됨",
     notConnected: "연결되지 않음",
     connect: "연결하기",
     unlink: "연결 해제",
     linkKakao: "Kakao 연결",
+    linkNaver: "Naver 연결",
     identityLoadFailed: "연결된 계정을 불러올 수 없습니다",
     linkFailed: "계정을 연결할 수 없습니다",
     unlinkFailed: "계정 연결을 해제할 수 없습니다",

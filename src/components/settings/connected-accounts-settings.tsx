@@ -29,8 +29,12 @@ type AccountState = {
   accounts: LinkedAccount[];
 };
 
-const PROVIDER_LABELS: Record<OAuthProviderId, "settings.linkKakao"> = {
+const PROVIDER_LABELS: Record<
+  OAuthProviderId,
+  "settings.linkKakao" | "settings.linkNaver"
+> = {
   kakao: "settings.linkKakao",
+  naver: "settings.linkNaver",
 };
 
 export function ConnectedAccountsSettings({

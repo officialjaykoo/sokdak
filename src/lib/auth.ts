@@ -28,6 +28,8 @@ type AuthEnv = {
   SOKDAK_AUTH_ORIGINS?: string;
   KAKAO_CLIENT_ID?: string;
   KAKAO_CLIENT_SECRET?: string;
+  NAVER_CLIENT_ID?: string;
+  NAVER_CLIENT_SECRET?: string;
   RATE_LIMIT_ENABLED?: boolean;
 };
 
@@ -103,6 +105,7 @@ function createAuthFromDb(db: D1Database, env: AuthEnv) {
   const baseURL = env.BETTER_AUTH_URL ?? "http://localhost:3000";
   const configuredProviders = getOAuthProviderCapabilities(env);
   const kakaoEnabled = configuredProviders.kakao;
+  const naverEnabled = configuredProviders.naver;
   const trustedProviders = OAUTH_PROVIDER_IDS.filter(
     (provider) => configuredProviders[provider]
   );
@@ -163,6 +166,41 @@ function createAuthFromDb(db: D1Database, env: AuthEnv) {
                     emailVerified:
                       profile.kakao_account?.is_email_valid === true &&
                       profile.kakao_account?.is_email_verified === true,
+                  }),
+                  ...(image ? { image } : {}),
+                };
+              },
+            },
+          }
+        : {}),
+      ...(naverEnabled
+        ? {
+            naver: {
+              clientId: env.NAVER_CLIENT_ID!,
+              clientSecret: env.NAVER_CLIENT_SECRET,
+              mapProfileToUser: (profile) => {
+                const naverProfile = (profile.response ?? {}) as {
+                  id?: unknown;
+                  nickname?: unknown;
+                  name?: unknown;
+                  email?: unknown;
+                  profile_image?: unknown;
+                };
+                const accountId = String(naverProfile.id ?? "");
+                const image = normalizeOAuthAvatarImage(
+                  naverProfile.profile_image
+                );
+                return {
+                  ...mapOAuthProfile({
+                    providerId: "naver",
+                    accountId,
+                    name: naverProfile.nickname ?? naverProfile.name,
+                  }),
+                  ...mapOAuthEmail({
+                    providerId: "naver",
+                    accountId,
+                    email: naverProfile.email,
+                    emailVerified: true,
                   }),
                   ...(image ? { image } : {}),
                 };
@@ -362,6 +400,8 @@ export async function getAuth(): Promise<Auth> {
       SOKDAK_AUTH_ORIGINS: env.SOKDAK_AUTH_ORIGINS,
       KAKAO_CLIENT_ID: env.KAKAO_CLIENT_ID,
       KAKAO_CLIENT_SECRET: env.KAKAO_CLIENT_SECRET,
+      NAVER_CLIENT_ID: env.NAVER_CLIENT_ID,
+      NAVER_CLIENT_SECRET: env.NAVER_CLIENT_SECRET,
       RATE_LIMIT_ENABLED:
         process.env.E2E_BOT_BYPASS === "1" ? false : undefined,
     });
@@ -378,6 +418,8 @@ export function createAuth(db: D1Database, env: AuthEnv = {}) {
     SOKDAK_AUTH_ORIGINS: env.SOKDAK_AUTH_ORIGINS,
     KAKAO_CLIENT_ID: env.KAKAO_CLIENT_ID,
     KAKAO_CLIENT_SECRET: env.KAKAO_CLIENT_SECRET,
+    NAVER_CLIENT_ID: env.NAVER_CLIENT_ID,
+    NAVER_CLIENT_SECRET: env.NAVER_CLIENT_SECRET,
     RATE_LIMIT_ENABLED: false,
   });
 }

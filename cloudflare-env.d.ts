@@ -23,6 +23,8 @@ interface CloudflareEnv {
 	SOKDAK_AUTH_ORIGINS?: string;
 	KAKAO_CLIENT_ID?: string;
 	KAKAO_CLIENT_SECRET?: string;
+	NAVER_CLIENT_ID?: string;
+	NAVER_CLIENT_SECRET?: string;
 	VAPID_PUBLIC_KEY?: string;
 	VAPID_PRIVATE_KEY?: string;
 	VAPID_SUBJECT?: string;
@@ -38,6 +40,8 @@ declare namespace NodeJS {
 		SOKDAK_AUTH_ORIGINS?: string;
 		KAKAO_CLIENT_ID?: string;
 		KAKAO_CLIENT_SECRET?: string;
+		NAVER_CLIENT_ID?: string;
+		NAVER_CLIENT_SECRET?: string;
 		VAPID_PUBLIC_KEY?: string;
 		VAPID_PRIVATE_KEY?: string;
 		VAPID_SUBJECT?: string;

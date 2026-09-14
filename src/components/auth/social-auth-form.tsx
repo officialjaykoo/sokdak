@@ -22,8 +22,16 @@ import {
 } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
 import { getSafeAuthNext } from "@/lib/auth-redirect";
+import type {
+  OAuthProviderCapabilities,
+  OAuthProviderId,
+} from "@/lib/oauth-providers";
 
-function SocialAuthForm() {
+function SocialAuthForm({
+  providers,
+}: {
+  providers: OAuthProviderCapabilities;
+}) {
   const { t } = useI18n();
   const localizeError = useLocalizedError();
   const searchParams = useSearchParams();
@@ -41,7 +49,7 @@ function SocialAuthForm() {
 
   function startIdentity(
     event: React.MouseEvent<HTMLButtonElement>,
-    provider: "kakao"
+    provider: OAuthProviderId
   ) {
     event.preventDefault();
     setError(null);
@@ -96,7 +104,9 @@ function SocialAuthForm() {
         <CardFooter className="flex flex-col items-stretch gap-4 px-6 pb-7 sm:px-8">
           <IdentityAuthButtons
             pending={pending}
+            providers={providers}
             onKakao={(event) => startIdentity(event, "kakao")}
+            onNaver={(event) => startIdentity(event, "naver")}
           />
           <p className="text-center text-xs leading-relaxed text-muted-foreground">
             {t("auth.continueHint")}
@@ -107,7 +117,11 @@ function SocialAuthForm() {
   );
 }
 
-export function SocialAuthPage() {
+export function SocialAuthPage({
+  providers,
+}: {
+  providers: OAuthProviderCapabilities;
+}) {
   const { t } = useI18n();
   return (
     <AuthShell>
@@ -118,7 +132,7 @@ export function SocialAuthPage() {
           </div>
         }
       >
-        <SocialAuthForm />
+        <SocialAuthForm providers={providers} />
       </Suspense>
     </AuthShell>
   );

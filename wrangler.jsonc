@@ -54,7 +54,9 @@
 		"BETTER_AUTH_URL": "https://sokdak.kr",
 		"NEXT_PUBLIC_TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
 		"NEXTJS_ENV": "production",
-		"KAKAO_CLIENT_ID": "055c7ca94e809f9f322d85a8f23fcf99"
+		"KAKAO_CLIENT_ID": "055c7ca94e809f9f322d85a8f23fcf99",
+		// Fill with the Naver Developers application Client ID to enable Naver login.
+		"NAVER_CLIENT_ID": ""
 	},
 	"triggers": {
 		"crons": ["0 3 * * *"]
